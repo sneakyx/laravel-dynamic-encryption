@@ -95,10 +95,10 @@ class Secret extends Model
 - On save: Fields are automatically encrypted using the current dynamic encrypter (unless the missing-bundle policy says otherwise).
 - On retrieved/post-save: Values are set back to plaintext in the model instance for convenient usage.
 
-### Variante A: Cast-basierter "Locked"-Flow (empfohlen)
-Statt einen kryptographischen Fallback (z. B. `APP_KEY`) zu nutzen, liefert der folgende Cast bei fehlendem Schlüssel KEINE Exception, sondern ein Placeholder-Objekt `LockedEncryptedValue`. Damit kann die UI den "Entsperren"-Dialog anzeigen, ohne den Renderpfad zu unterbrechen.
+### Cast-based "Locked" Flow
+Instead of using a cryptographic fallback (e.g., `APP_KEY`), the following cast returns a `LockedEncryptedValue` placeholder object when the key is missing—no exception is thrown. This allows the UI to display an "unlock" dialog without breaking the rendering flow.
 
-1) Cast verwenden:
+1) Use Cast:
 ```php
 use Illuminate\Database\Eloquent\Model;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
@@ -111,24 +111,26 @@ class UserSecret extends Model
 }
 ```
 
-2) In der UI prüfen:
+2) Check in the UI:
 ```php
 use Sneakyx\LaravelDynamicEncryption\Values\LockedEncryptedValue;
 
 if ($userSecret->iban instanceof LockedEncryptedValue) {
-    // zeige Banner/Modal: "Zum Anzeigen bitte Passwort eingeben"
+    // Show banner/modal: "Please enter password to view"
 } else {
-    echo $userSecret->iban; // entschlüsselter Klartext
+    echo $userSecret->iban; // Decrypted plaintext
 }
 ```
 
-3) Beim Speichern:
-- Ist der Bundle-Schlüssel verfügbar, wird normal verschlüsselt.
-- Ist der Schlüssel nicht vorhanden, greift die Policy `dynamic-encryption.on_missing_bundle`:
-  - `block` (Default): Es wird eine ValidationException geworfen.
-  - `plaintext`: Wert wird absichtlich im Klartext gespeichert (nur temporär/ausnahmsweise nutzen!).
+3) When saving:
 
-Hinweis: `LockedEncryptedValue` ist string-/json-serialisierbar (liefert leere Zeichenkette bzw. `null`) und enthält keine Klartextdaten.
+- If the bundle key is available, encryption proceeds normally.
+- If the key is missing, the policy dynamic-encryption.on_missing_bundle applies:
+    - block (default): Throws a ValidationException.
+    - plaintext: Stores the value in plaintext (use only temporarily or in exceptional cases!).
+
+
+Note: `LockedEncryptedValue` is string-/JSON-serializable (returns an empty string or null) and contains no plaintext data.
 
 ### Where is the key/password stored?
 The package expects a key bundle (array) in your cache under `DYNAMIC_ENCRYPTION_CACHE_KEY`.
