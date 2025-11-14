@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Sneakyx\LaravelDynamicEncryption\Providers\DynamicEncryptionServiceProvider;
 use Sneakyx\LaravelDynamicEncryption\Services\StorageManager;
-use Sneakyx\LaravelDynamicEncryption\Traits\Encryptable;
+use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
 class RotateTest extends Orchestra
 {
@@ -18,7 +18,7 @@ class RotateTest extends Orchestra
 
     protected function defineEnvironment($app)
     {
-        $app['config']->set('app.key', 'base64:' . base64_encode(random_bytes(32)));
+        $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '',
@@ -44,7 +44,7 @@ class RotateTest extends Orchestra
     {
         $sm = $this->app->make(StorageManager::class);
         $raw = random_bytes(32);
-        $sm->storeKey('base64:' . base64_encode($raw));
+        $sm->storeKey('base64:'.base64_encode($raw));
 
         // Create data
         TestSecret::create(['name' => 'A', 'token' => 'alpha']);
@@ -74,28 +74,29 @@ class RotateTest extends Orchestra
     {
         // Put a model file into app/Models dynamically
         $modelsDir = app_path('Models');
-        if (!is_dir($modelsDir)) {
+        if (! is_dir($modelsDir)) {
             mkdir($modelsDir, 0777, true);
         }
-        $modelPath = $modelsDir . DIRECTORY_SEPARATOR . 'AllSecret.php';
+        $modelPath = $modelsDir.DIRECTORY_SEPARATOR.'AllSecret.php';
         file_put_contents($modelPath, <<<'PHP'
 <?php
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
-use Sneakyx\LaravelDynamicEncryption\Traits\Encryptable;
+use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 class AllSecret extends Model {
-    use Encryptable;
+    use DynamicEncryptable;
     protected $table = 'test_secrets';
     protected $fillable = ['name','token'];
     protected array $encryptable = ['token'];
 }
-PHP);
+PHP
+        );
 
         // Seed
         TestSecret::create(['name' => 'C', 'token' => 'gamma']);
 
         $sm = $this->app->make(StorageManager::class);
-        $sm->storeKey('base64:' . base64_encode(random_bytes(32)));
+        $sm->storeKey('base64:'.base64_encode(random_bytes(32)));
 
         // Run with --all
         $this->artisan('encrypt:rotate', ['--all' => true])->assertExitCode(0);
@@ -109,8 +110,11 @@ PHP);
 
 class TestSecret extends \Illuminate\Database\Eloquent\Model
 {
-    use Encryptable;
+    use DynamicEncryptable;
+
     protected $table = 'test_secrets';
+
     protected $fillable = ['name', 'token'];
+
     protected array $encryptable = ['token'];
 }

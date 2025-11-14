@@ -6,11 +6,12 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Sneakyx\LaravelDynamicEncryption\Services\StorageManager;
-use Sneakyx\LaravelDynamicEncryption\Traits\Encryptable;
+use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
 class RotateEncryptionKey extends Command
 {
     protected $signature = 'encrypt:rotate {--model=* : Specific FQCN models to rotate} {--all : Rotate for all models using Encryptable} {--dry-run : Dry run without changing data}';
+
     protected $description = 'Rotate the dynamic encryption key and re-encrypt models.';
 
     public function handle(StorageManager $storage): int
@@ -18,25 +19,26 @@ class RotateEncryptionKey extends Command
         $dryRun = (bool) $this->option('dry-run');
 
         $models = $this->option('model');
-        if (empty($models) && !$this->option('all')) {
+        if (empty($models) && ! $this->option('all')) {
             $this->error('No models specified. Use --model=ModelClass or --all to rotate keys.');
+
             return Command::FAILURE;
         }
         if ($this->option('all')) {
             $models = $this->findAllModelsWithEncryptable();
         }
 
-        $oldKeyString = $storage->getKeyString();
+        // get old key from storage
+        $oldKeyString = $storage->getKeyString(true);
         $oldEncrypter = $storage->makeEncrypterFromKeyString($oldKeyString);
 
-        $newRaw = random_bytes(32);
-        $newKeyString = 'base64:' . base64_encode($newRaw);
+        // get new key from storage
+        $newKeyString = $storage->getKeyString(false);
 
         if ($dryRun) {
-            $this->info('Dry run: would generate and store a new key and re-encrypt data.');
+            $this->info('Dry run: would use existing old and new keys to re-encrypt data.');
         } else {
-            $storage->storeKey($newKeyString);
-            $this->info('New dynamic key generated and stored.');
+            $this->info('Using existing new dynamic key for rotation.');
             Log::info('Dynamic encryption key rotated');
         }
 
@@ -45,8 +47,9 @@ class RotateEncryptionKey extends Command
         $chunk = (int) Config::get('dynamic-encryption.chunk', 200);
 
         foreach ($models as $fqcn) {
-            if (!class_exists($fqcn)) {
+            if (! class_exists($fqcn)) {
                 $this->warn("Model not found: {$fqcn}");
+
                 continue;
             }
 
@@ -55,6 +58,7 @@ class RotateEncryptionKey extends Command
             $encryptable = $model->encryptable ?? [];
             if (empty($encryptable)) {
                 $this->warn("Model {$fqcn} has no encryptable fields.");
+
                 continue;
             }
 
@@ -71,7 +75,7 @@ class RotateEncryptionKey extends Command
                         try {
                             $decrypted = $oldEncrypter->decryptString($val);
                         } catch (\Throwable $e) {
-                            // cannot decrypt with old key, skip this field
+                            // cannot decrypt with the old key, skip this field
                             continue;
                         }
                         $reencrypted = $newEncrypter->encryptString($decrypted);
@@ -80,7 +84,7 @@ class RotateEncryptionKey extends Command
                             $dirty = true;
                         }
                     }
-                    if ($dirty && !$dryRun) {
+                    if ($dirty && ! $dryRun) {
                         $row->save();
                     }
                 }
@@ -88,6 +92,7 @@ class RotateEncryptionKey extends Command
         }
 
         $this->info('Rotation complete.');
+
         return Command::SUCCESS;
     }
 
@@ -95,17 +100,18 @@ class RotateEncryptionKey extends Command
     {
         $models = [];
         $modelPath = app_path('Models');
-        if (!is_dir($modelPath)) {
+        if (! is_dir($modelPath)) {
             return $models;
         }
         foreach (scandir($modelPath) as $file) {
             if (str_ends_with($file, '.php')) {
-                $class = 'App\\Models\\' . str_replace('.php', '', $file);
-                if (class_exists($class) && in_array(Encryptable::class, class_uses($class))) {
+                $class = 'App\\Models\\'.str_replace('.php', '', $file);
+                if (class_exists($class) && in_array(DynamicEncryptable::class, class_uses($class))) {
                     $models[] = $class;
                 }
             }
         }
+
         return $models;
     }
 }

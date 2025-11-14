@@ -1,48 +1,49 @@
 ## Why This Package Exists
 
-This package was created to solve **three critical problems** in Laravel encryption:
+This package was created to solve practical problems in Laravel encryption while keeping operations simple:
 
-1. **Dynamic Key Management**
-   Laravel’s default encryption relies on a static `APP_KEY`, which is **inflexible** and **hard to rotate** without downtime.
-   This package replaces it with a **volatile key system** (Memcached/Redis), allowing:
-    - **Key rotation without downtime** (e.g., for security compliance).
-    - **No persistent storage** (keys vanish on cache restart, reducing attack surface).
+1) Dynamic, ephemeral keys with deterministic recovery
+- Laravel’s default encryption uses a static `APP_KEY`, making rotation awkward.
+- Here, the effective runtime key is either:
+  - provided as a `base64:`-encoded raw key in cache, or
+  - deterministically derived from a plain password (stored in cache) using a KDF and a salt from `.env`.
+- Result: You can clear caches and still recover the same key as long as the password, salt, and KDF params stay the same.
 
-2. **DSGVO/GDPR Compliance**
-   Storing encryption keys in `.env` or databases violates **data protection principles** (e.g., "storage limitation").
-   This package enforces:
-    - **Ephemeral keys** (only in memory/cache).
-    - **No fallback to `APP_KEY`** (fails fast if key is missing, preventing silent security risks).
+2) Reduce persistent key exposure (GDPR/DSGVO mindset)
+- No encryption key is stored in the database.
+- The password/key bundle lives in a volatile cache; the salt and KDF params live in environment config.
+- There is no silent fallback to `APP_KEY` to avoid accidental use of the wrong key.
 
-3. **Zero-Configuration Encryption**
-   Unlike other packages (e.g., `spatie/laravel-ciphersweet`), this solution:
-    - **Automatically encrypts/decrypts** model attributes via a trait.
-    - **Requires no manual accessors/mutators**.
-    - **Works with existing Laravel facades** (`Crypt::encryptString()`).
+3) Minimal code changes for applications
+- Works with Laravel’s native `Crypt`/`Encrypter`.
+- Provides a trait to transparently encrypt/decrypt chosen model attributes without writing accessors/mutators.
 
 ### Use Cases
-- **High-security applications** (e.g., healthcare, finance) where key rotation is mandatory.
-- **Multi-tenant systems** where each tenant needs isolated encryption keys.
-- **Projects with strict GDPR requirements** (no persistent key storage).
+- Environments wanting key rotation without downtime.
+- Systems that prefer not to persist raw encryption keys in databases.
+- Teams that want a password-driven model (with KDF) and reproducible keys across restarts.
 
 ### Alternatives Considered
-| Solution                     | Problem                          |
- |------------------------------|----------------------------------|
-| Laravel’s default `Crypt`    | Static key, no rotation support. |
-| `spatie/laravel-ciphersweet` | Persistent keys, complex setup.  |
-| Manual accessors/mutators    | Boilerplate code, error-prone.   |
+| Solution                     | Observation                           |
+|-----------------------------|----------------------------------------|
+| Laravel’s default `Crypt`   | Static key; rotation requires app key changes. |
+| `spatie/laravel-ciphersweet`| Great features but persistent keys and different crypto model. |
+| Manual accessors/mutators   | Boilerplate and error-prone for many fields. |
 
-This package provides a **minimalist, secure, and compliant** alternative.
+### Design Decisions (updated)
+1) Cache bundle + KDF-from-.env
+- A bundle array in cache (under `dynamic-encryption.array`) contains `password`/`old_password`.
+- If the value starts with `base64:`, it’s a ready-to-use raw key.
+- Otherwise, the value is treated as a password and turned into a key with the configured KDF (PBKDF2 or Argon2id) and salt from `.env`.
 
-### Key Design Decisions
-1. **No Database Storage**
-   Keys are **only stored in Memcached/Redis** to ensure volatility.
-   *(Rationale: Databases can be compromised; caches are ephemeral.)*
+2) Cipher-driven key length
+- Required key size is derived from `config('app.cipher')` (16 or 32 bytes).
 
-2. **Explicit Model Selection**
-   The `encrypt:rotate` command **requires `--model` or `--all`** to prevent accidental mass re-encryption.
-   *(Rationale: Safety over convenience.)*
+3) Fail fast, no key logging
+- Missing/invalid bundle or misconfigured salt/KDF leads to explicit exceptions.
+- No key or password is ever logged.
 
-3. **Fail-Fast on Missing Keys**
-   Throws exceptions if the dynamic key is missing (no silent fallback to `APP_KEY`).
-   *(Rationale: Security > availability.)*
+4) Rotation without downtime
+- Provide both `old_password` and `password` in the bundle; run `php artisan encrypt:rotate ...` to re-encrypt fields in batches.
+
+This approach keeps secrets where they belong (password in cache/secret store, salt/KDF in env), avoids persisting raw keys, and remains compatible with Laravel’s native encryption APIs.

@@ -15,7 +15,7 @@ class StorageManagerTest extends Orchestra
 
     protected function defineEnvironment($app)
     {
-        $app['config']->set('app.key', 'base64:' . base64_encode(random_bytes(32)));
+        $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
         $app['config']->set('dynamic-encryption.storage', 'memcache');
         $app['config']->set('dynamic-encryption.key', 'dynamic_encryption_key');
     }
@@ -24,19 +24,28 @@ class StorageManagerTest extends Orchestra
     {
         $sm = $this->app->make(StorageManager::class);
         $raw = random_bytes(32);
-        $bytes = $sm->normalizeKeyToBytes('base64:' . base64_encode($raw));
+        $bytes = $sm->normalizeKeyToBytes('base64:'.base64_encode($raw));
         $this->assertSame($raw, $bytes);
     }
 
-    public function test_store_and_get_key_via_cache(): void
+    public function test_get_key_with_old_and_new_parameters(): void
     {
         $sm = $this->app->make(StorageManager::class);
-        $raw = random_bytes(32);
-        $keyString = 'base64:' . base64_encode($raw);
-        $sm->storeKey($keyString);
 
-        $this->assertSame($keyString, $sm->getKeyString());
-        $this->assertSame($raw, $sm->getKeyBytes());
+        // Mock keys in cache first so we have something to retrieve
+        $this->app['cache']->store('memcached')->put('dynamic_encryption_key_old', 'base64:'.base64_encode(random_bytes(32)));
+        $this->app['cache']->store('memcached')->put('dynamic_encryption_key', 'base64:'.base64_encode(random_bytes(32)));
+
+        // Test getting old key
+        $oldKey = $sm->getKeyString(true);
+        $this->assertStringStartsWith('base64:', $oldKey);
+
+        // Test getting new key
+        $newKey = $sm->getKeyString(false);
+        $this->assertStringStartsWith('base64:', $newKey);
+
+        // Keys should be different
+        $this->assertNotSame($oldKey, $newKey);
     }
 
     public function test_invalid_storage_throws_exception(): void

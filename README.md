@@ -1,8 +1,7 @@
 # sneakyx/laravel-dynamic-encryption
 
-A **minimalist Laravel package** that replaces the default `Encrypter` with a **dynamic key system**.
-The encryption key is **not loaded from `APP_KEY`**, but from a **volatile storage** (Memcached/Redis).
-This ensures **no persistent key storage** (e.g., no database), making it **DSGVO/GDPR-compliant** for ephemeral key management.
+A minimalist Laravel package that replaces the default `Encrypter` with a dynamic key system.
+The application encryption key is not taken from `APP_KEY`, but resolved at runtime from a volatile store (cache) and/or derived from a password using a KDF. This enables ephemeral key management and straightforward rotation.
 Read more in: [Why does this exist?](docs/why-does-this-exist.md)
 ---
 
@@ -14,82 +13,112 @@ Read more in: [Why does this exist?](docs/why-does-this-exist.md)
 2. Update autoloading:
    ```bash
    composer dump-autoload
-Standalone Project (GitHub)
+   ```
+
+### Standalone Project (Packagist/GitHub)
+```bash
 composer require sneakyx/laravel-dynamic-encryption
+```
 The package uses Laravel’s auto-discovery and binds the service provider automatically.
 
-### Configuration
-.env
+## Configuration
+
+Add environment variables and publish/adjust the config if needed.
+
+Relevant `.env` variables (examples):
 ```
-DYNAMIC_ENCRYPTION_STORAGE=memcache  # Supported: memcache|redis
-DYNAMIC_ENCRYPTION_KEY=dynamic_encryption_key  # Key name in cache storage
-config/dynamic-encryption.php
+# Which cache store (by name) is expected to carry the key bundle (validated);
+# the bundle is read via your DEFAULT cache store. Ensure they match in practice.
+DYNAMIC_ENCRYPTION_CACHE_STORE=memcached
+
+# Cache key that holds the bundle (an array) with fields like "password" and "old_password"
+DYNAMIC_ENCRYPTION_CACHE_KEY=dynamic_encryption_key
+DYNAMIC_ENCRYPTION_ARRAY_KEY=password
+DYNAMIC_ENCRYPTION_ARRAY_OLD_KEY=old_password
+
+# KDF settings (password -> key). Salt/params come from .env
+DYNAMIC_ENCRYPTION_KDF=pbkdf2    # or: argon2id
+DYNAMIC_ENCRYPTION_KDF_ALGO=sha256
+DYNAMIC_ENCRYPTION_KDF_ITERS=210000
+
+# Salt can be raw text or base64:...
+DYNAMIC_ENCRYPTION_SALT=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+
+# Behavior when the dynamic key bundle is missing
+#   block     -> prevent saving changed encryptable fields (default)
+#   plaintext -> skip encryption for changed fields (store as plaintext)
+#   fail      -> throw and fail boot
+DYNAMIC_ENCRYPTION_ON_MISSING_BUNDLE=block
 ```
 
-## Key Notes:
+See `config/dynamic-encryption.php` for all options.
 
-No fallback to APP_KEY: If the dynamic key is missing, an exception is thrown.
-No database storage: Keys are only stored in volatile caches (Memcached/Redis).
+Key size is taken from `config('app.cipher')`:
+- aes-256-cbc / aes-256-gcm → 32 bytes
+- aes-128-cbc / aes-128-gcm → 16 bytes
 
+## Key material: two supported formats
+- Base64-derived key: `base64:<...>` that decodes to the required key length.
+- Plain password: any string; the package derives the correct-length key using the configured KDF and salt from `.env`.
+
+## Behavior when the key bundle is missing
+- The package keeps the framework operational (sessions/cookies) by providing a core encrypter from `APP_KEY`.
+- A runtime flag is set (`dynamic-encryption.missing_bundle` by default). The `DynamicEncryptable` trait consults this flag and applies the policy:
+  - `block` (default): Saving models with changed encryptable fields throws a validation error. Unchanged fields are untouched. Reading remains tolerant.
+  - `plaintext`: Encryption is skipped for changed encryptable fields (they are stored as plaintext). Use only in exceptional cases.
+  - `fail`: Provider throws during boot; the application will error.
 
 ## Usage
-#### Automatic Encryption
-After installation, the package replaces Laravel’s default Encrypter.
-Use the Crypt facade as usual:
+
+The package replaces Laravel’s default Encrypter. Use the Crypt facade as usual:
+```php
+use Illuminate\Support\Facades\Crypt;
+
+$payload = Crypt::encryptString('secret');
+$plain   = Crypt::decryptString($payload);
 ```
-Crypt::encryptString('secret');
-Crypt::decryptString($payload);
-```
-#### Encryptable Trait
-Add the trait to your models and define an $encryptable array with fields to encrypt:
-```
-use Sneakyx\LaravelDynamicEncryption\Traits\Encryptable;
+
+### DynamicEncryptable Trait
+Add the trait to your models and define an `$encryptable` array with fields to encrypt:
+```php
+use Illuminate\Database\Eloquent\Model;
+use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
 class Secret extends Model
 {
-use Encryptable;
+    use DynamicEncryptable;
 
     protected array \$encryptable = ['token', 'note'];
 }
 ```
-On save: Fields are automatically encrypted.
-On load/post-save: Values are decrypted in-memory (plaintext in model).
+- On save: Fields are automatically encrypted using the current dynamic encrypter (unless the missing-bundle policy says otherwise).
+- On retrieved/post-save: Values are set back to plaintext in the model instance for convenient usage.
 
-### Where can I find the key?
-The key is stored in volatile storage (Memcached/Redis).
-Read me here: [Where is the key?](docs/where-is-the-key.md)
+### Where is the key/password stored?
+The package expects a key bundle (array) in your cache under `DYNAMIC_ENCRYPTION_CACHE_KEY`.
+Read more: [Where is the key?](docs/where-is-the-key.md)
 
-### Key Rotation
-Rotate encryption keys without persistent storage:
-```
+## Key Rotation
+Re-encrypt existing data from an old key/password to a new one:
+```bash
 php artisan encrypt:rotate --model=App\\Models\\Secret
 ```
-#### Options:
-`--model=ModelClassRotate` only the specified model (can be used multiple times).
-`--all` Rotate all models using the Encryptable trait (use with caution!).
-`--dry-run` Dry run (no changes to data).
+Options:
+- `--model=FQCN` Can be repeated.
+- `--all` Rotate for all models using the DynamicEncryptable trait (be careful on large datasets).
+- `--dry-run` Do not write changes.
 
-#### Key Notes:
+How it works:
+- The command expects your cache bundle to contain both entries: `old_password` and `password` (names configurable via env/config).
+- It decrypts each field with the old encrypter and re-encrypts with the new one, in chunks (`dynamic-encryption.chunk`).
 
-Fails without `--model` or `--all`: The command explicitly requires model specification.
-Warning: `--all` can be slow for large datasets (use only for small projects).
-
-Process:
-
-A new 32-byte key is generated and stored as a base64: string in the configured cache.
-Specified models are re-encrypted in chunks (batch size: chunk config).
-Secure logging: No key values are logged.
-
-
-## Security
-
-No key logging: Keys are never written to logs or dumps.
-AES-256-CBC: Uses Laravel’s built-in encryption for secure ciphertext.
-Volatile storage: Keys are only stored in Memcached/Redis (no persistence).
-
+## Security notes
+- No key/password is written to logs.
+- KDF parameters and salt live in `.env`/secrets; the password/key material lives in cache (bundle).
+- Use a non-persistent cache store shared by your PHP workers (memcached/redis). Avoid the `array` driver.
 
 ## Compatibility
-Tested with Laravel 10, 11, and 12.
+Tested with Laravel 10.
 
 ## License
 MIT
