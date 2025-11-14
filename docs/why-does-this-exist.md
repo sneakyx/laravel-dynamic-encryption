@@ -24,11 +24,11 @@ This package was created to solve practical problems in Laravel encryption while
 - Teams that want a password-driven model (with KDF) and reproducible keys across restarts.
 
 ### Alternatives Considered
-| Solution                     | Observation                           |
-|-----------------------------|----------------------------------------|
-| Laravel’s default `Crypt`   | Static key; rotation requires app key changes. |
-| `spatie/laravel-ciphersweet`| Great features but persistent keys and different crypto model. |
-| Manual accessors/mutators   | Boilerplate and error-prone for many fields. |
+| Solution                     | Observation                                                    |
+|------------------------------|----------------------------------------------------------------|
+| Laravel’s default `Crypt`    | Static key; rotation requires app key changes.                 |
+| `spatie/laravel-ciphersweet` | Great features but persistent keys and different crypto model. |
+| Manual accessors/mutators    | Boilerplate and error-prone for many fields.                   |
 
 ### Design Decisions (updated)
 1) Cache bundle + KDF-from-.env

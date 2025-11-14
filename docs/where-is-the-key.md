@@ -91,11 +91,11 @@ Key size is inferred from `APP_CIPHER`/`config('app.cipher')`:
 ---
 
 ## Troubleshooting
-| Issue | Solution |
-|------|----------|
+| Issue                                                     | Solution                                                                                                                       |
+|-----------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
 | `RuntimeException: Dynamic encryption key array is empty` | Ensure the bundle array is written to `Cache::forever(config('dynamic-encryption.array'), [...])` in your DEFAULT cache store. |
-| `Dynamic encryption key is empty` | The bundle exists but does not contain the expected field (e.g., `password`). Check `DYNAMIC_ENCRYPTION_ARRAY_KEY`. |
-| `Invalid base64 dynamic key: wrong length.` | Your `base64:` key decodes to the wrong size. Ensure it matches the cipher (16 or 32 bytes). |
-| `KDF salt not configured` | Set `DYNAMIC_ENCRYPTION_SALT` in `.env` (raw or `base64:`). |
-| Encryption still fails | Verify that your default `CACHE_DRIVER` matches where you populated the bundle; clear caches: `php artisan optimize:clear`. |
+| `Dynamic encryption key is empty`                         | The bundle exists but does not contain the expected field (e.g., `password`). Check `DYNAMIC_ENCRYPTION_ARRAY_KEY`.            |
+| `Invalid base64 dynamic key: wrong length.`               | Your `base64:` key decodes to the wrong size. Ensure it matches the cipher (16 or 32 bytes).                                   |
+| `KDF salt not configured`                                 | Set `DYNAMIC_ENCRYPTION_SALT` in `.env` (raw or `base64:`).                                                                    |
+| Encryption still fails                                    | Verify that your default `CACHE_DRIVER` matches where you populated the bundle; clear caches: `php artisan optimize:clear`.    |
 

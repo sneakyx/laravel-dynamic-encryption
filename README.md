@@ -63,7 +63,8 @@ Key size is taken from `config('app.cipher')`:
 
 ## Behavior when the key bundle is missing
 - The package keeps the framework operational (sessions/cookies) by providing a core encrypter from `APP_KEY`.
-- A runtime flag is set (`dynamic-encryption.missing_bundle` by default). The `DynamicEncryptable` trait consults this flag and applies the policy:
+- A runtime flag is set (`dynamic-encryption.missing_bundle` by default). Application code should NOT try decrypting data with a fallback key. Instead, use the cast below to surface a "locked" value in the UI until the user unlocks their data (Variante A).
+- Policies when saving while the bundle is missing:
   - `block` (default): Saving models with changed encryptable fields throws a validation error. Unchanged fields are untouched. Reading remains tolerant.
   - `plaintext`: Encryption is skipped for changed encryptable fields (they are stored as plaintext). Use only in exceptional cases.
   - `fail`: Provider throws during boot; the application will error.
@@ -93,6 +94,41 @@ class Secret extends Model
 ```
 - On save: Fields are automatically encrypted using the current dynamic encrypter (unless the missing-bundle policy says otherwise).
 - On retrieved/post-save: Values are set back to plaintext in the model instance for convenient usage.
+
+### Variante A: Cast-basierter "Locked"-Flow (empfohlen)
+Statt einen kryptographischen Fallback (z. B. `APP_KEY`) zu nutzen, liefert der folgende Cast bei fehlendem Schlüssel KEINE Exception, sondern ein Placeholder-Objekt `LockedEncryptedValue`. Damit kann die UI den "Entsperren"-Dialog anzeigen, ohne den Renderpfad zu unterbrechen.
+
+1) Cast verwenden:
+```php
+use Illuminate\Database\Eloquent\Model;
+use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
+
+class UserSecret extends Model
+{
+    protected $casts = [
+        'iban' => EncryptedNullableCast::class,
+    ];
+}
+```
+
+2) In der UI prüfen:
+```php
+use Sneakyx\LaravelDynamicEncryption\Values\LockedEncryptedValue;
+
+if ($userSecret->iban instanceof LockedEncryptedValue) {
+    // zeige Banner/Modal: "Zum Anzeigen bitte Passwort eingeben"
+} else {
+    echo $userSecret->iban; // entschlüsselter Klartext
+}
+```
+
+3) Beim Speichern:
+- Ist der Bundle-Schlüssel verfügbar, wird normal verschlüsselt.
+- Ist der Schlüssel nicht vorhanden, greift die Policy `dynamic-encryption.on_missing_bundle`:
+  - `block` (Default): Es wird eine ValidationException geworfen.
+  - `plaintext`: Wert wird absichtlich im Klartext gespeichert (nur temporär/ausnahmsweise nutzen!).
+
+Hinweis: `LockedEncryptedValue` ist string-/json-serialisierbar (liefert leere Zeichenkette bzw. `null`) und enthält keine Klartextdaten.
 
 ### Where is the key/password stored?
 The package expects a key bundle (array) in your cache under `DYNAMIC_ENCRYPTION_CACHE_KEY`.

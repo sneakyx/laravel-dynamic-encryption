@@ -4,10 +4,12 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 ### Added
-- 
+- EncryptedNullableCast that safely returns a LockedEncryptedValue when the decryption key is not available (Variante A behavior).
+- LockedEncryptedValue value object to represent a locked/undecryptable attribute without throwing exceptions.
 
 ### Changed
-- 
+- Removed the idea of using APP_KEY as a data decryption fallback. When the dynamic key bundle is missing, model attributes using the provided cast will no longer throw or try a wrong key; they will resolve to a LockedEncryptedValue instead.
+- Documentation updated to recommend the cast-based flow (prompt user to unlock) instead of automatic fallback.
 
 ### Fixed
 - 
