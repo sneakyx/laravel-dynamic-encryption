@@ -4,6 +4,7 @@ namespace Sneakyx\LaravelDynamicEncryption\Providers;
 
 use Illuminate\Contracts\Encryption\Encrypter as EncrypterContract;
 use Illuminate\Encryption\Encrypter;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 use Sneakyx\LaravelDynamicEncryption\Console\RotateEncryptionKey;
@@ -51,6 +52,28 @@ class DynamicEncryptionServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../../config/dynamic-encryption.php' => config_path('dynamic-encryption.php'),
         ], 'config');
+
+        // In testing, ensure a dynamic encryption password exists early so migrations can run
+        if ($this->app->environment('testing')) {
+            try {
+                $store = (string) Config::get('dynamic-encryption.storage');
+                $arrayKey = (string) Config::get('dynamic-encryption.array');
+                $fieldKey = (string) Config::get('dynamic-encryption.key');
+
+                if ($arrayKey && $fieldKey) {
+                    $bundle = Cache::store($store)->get($arrayKey);
+                    if (! is_array($bundle)) {
+                        $bundle = [];
+                    }
+                    if (! array_key_exists($fieldKey, $bundle) || empty($bundle[$fieldKey])) {
+                        $bundle[$fieldKey] = 'base64:'.base64_encode(random_bytes(32));
+                        Cache::store($store)->forever($arrayKey, $bundle);
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Silently ignore to avoid interfering with app boot in tests; TestCase may populate later.
+            }
+        }
 
         if ($this->app->runningInConsole()) {
             $this->commands([
