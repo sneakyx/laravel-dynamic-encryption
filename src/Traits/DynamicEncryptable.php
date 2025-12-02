@@ -7,6 +7,8 @@ use Illuminate\Validation\ValidationException;
 
 trait DynamicEncryptable
 {
+    use CheckCredentialsExist;
+
     public static function bootDynamicEncryptable(): void
     {
         static::retrieved(function ($model) {
@@ -21,8 +23,6 @@ trait DynamicEncryptable
 
         static::saving(function ($model) {
             $encryptable = $model->encryptable ?? [];
-            $flagKey = Config::get('dynamic-encryption.missing_bundle_flag_key', 'dynamic-encryption.missing_bundle');
-            $missing = (bool) Config::get($flagKey, false);
             $policy = strtolower((string) Config::get('dynamic-encryption.on_missing_bundle', 'block'));
 
             foreach ($encryptable as $field) {
@@ -36,10 +36,10 @@ trait DynamicEncryptable
                     continue;
                 }
 
-                if ($missing) {
+                if (! $this->checkCredentialsExist()) {
                     if ($policy === 'block') {
                         throw ValidationException::withMessages([
-                            $field => __('Saving not possible: Dynamic encryption key is not available. Please contact an administrator.'),
+                            $field => __('Saving not possible now: Dynamic encryption key is not available. Please contact an administrator.'),
                         ]);
                     }
                     if ($policy === 'plaintext') {

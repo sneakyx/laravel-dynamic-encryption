@@ -3,6 +3,7 @@
 namespace Sneakyx\LaravelDynamicEncryption\Providers;
 
 use Illuminate\Contracts\Encryption\Encrypter as EncrypterContract;
+use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 use Sneakyx\LaravelDynamicEncryption\Console\RotateEncryptionKey;
@@ -19,14 +20,11 @@ class DynamicEncryptionServiceProvider extends ServiceProvider
             return new StorageManager;
         });
 
-        // Bind our encrypter as the core encrypter; keep app runnable even if bundle is missing.
+        // Bind our encrypter as the core encrypter; keep app runnable even if password bundle is missing.
         $this->app->singleton('encrypter', function ($app) {
-            $flagKey = Config::get('dynamic-encryption.missing_bundle_flag_key', 'dynamic-encryption.missing_bundle');
             try {
                 return new DynamicEncrypter($app->make(StorageManager::class));
             } catch (\Throwable $e) {
-                // Mark missing bundle so trait/model logic can decide what to do for DB fields.
-                Config::set($flagKey, true);
 
                 $policy = strtolower((string) Config::get('dynamic-encryption.on_missing_bundle', 'block'));
                 if ($policy === 'fail') {
@@ -40,7 +38,7 @@ class DynamicEncryptionServiceProvider extends ServiceProvider
                     ? base64_decode(substr($appKey, 7), true)
                     : $appKey;
 
-                return new \Illuminate\Encryption\Encrypter($keyBytes, $cipher);
+                return new Encrypter($keyBytes, $cipher);
             }
         });
 

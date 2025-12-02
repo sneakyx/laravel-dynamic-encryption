@@ -29,8 +29,5 @@ return [
     //  - 'fail'      => throw and fail boot
     'on_missing_bundle' => env('DYNAMIC_ENCRYPTION_ON_MISSING_BUNDLE', 'block'),
 
-    // Config flag key that is set to true at runtime when bundle is missing
-    'missing_bundle_flag_key' => env('DYNAMIC_ENCRYPTION_FLAG_KEY', 'dynamic-encryption.missing_bundle'),
-
     'chunk' => 200,
 ];
