@@ -21,6 +21,14 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 ### Security
 -
 
+## [0.1.4] - 2025-12-04
+### Added
+- Trait for encrypting data attributes for tests.
+
+## [0.1.3] - 2025-12-02
+### Changed
+- Removed the idea of using APP_KEY as a data decryption fallback for DATA decryption.
+
 ## [0.1.2] - 2025-11-14
 ### Changed
 - Documentation updates (README, docs/*): the text was in german language.

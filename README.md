@@ -150,6 +150,34 @@ How it works:
 - The command expects your cache bundle to contain both entries: `old_password` and `password` (names configurable via env/config).
 - It decrypts each field with the old encrypter and re-encrypts with the new one, in chunks (`dynamic-encryption.chunk`).
 
+## Testing
+
+If you are writing Feature tests for your application, you need to ensure that a valid encryption key is present in the cache. Otherwise, models using `DynamicEncryptable` might throw exceptions or fail to save.
+
+This package ships with a helper trait `DynamicEncryptionTestLoader`. Use it in your base `TestCase` to automatically inject a temporary key into the cache for the duration of the tests.
+
+```php
+namespace Tests;
+
+use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Sneakyx\LaravelDynamicEncryption\Testing\DynamicEncryptionTestLoader;
+
+abstract class TestCase extends BaseTestCase
+{
+    use CreatesApplication;
+    use DynamicEncryptionTestLoader;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Initializes a random key and writes it to the configured cache store
+        $this->initializeDynamicEncryptionKeyForTests();
+    }
+}
+```
+
+
 ## Security notes
 - No key/password is written to logs.
 - KDF parameters and salt live in `.env`/secrets; the password/key material lives in cache (bundle).
