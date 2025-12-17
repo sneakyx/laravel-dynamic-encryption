@@ -23,6 +23,9 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## [0.1.4] - 2025-12-04
 ### Added
+- it is now possible to return null, LockedEncryptedValue or the plain string from the cast method.
+
+### Added
 - Trait for encrypting data attributes for tests.
 
 ## [0.1.3] - 2025-12-02

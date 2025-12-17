@@ -96,7 +96,15 @@ class Secret extends Model
 - On retrieved/post-save: Values are set back to plaintext in the model instance for convenient usage.
 
 ### Cast-based "Locked" Flow
-Instead of using a cryptographic fallback (e.g., `APP_KEY`), the following cast returns a `LockedEncryptedValue` placeholder object when the key is missing—no exception is thrown. This allows the UI to display an "unlock" dialog without breaking the rendering flow.
+Instead of using a cryptographic fallback (e.g., `APP_KEY`), 
+the following cast returns a `LockedEncryptedValue` placeholder object when the key is missing—no exception is thrown. 
+This allows the UI to display an "unlock" dialog without breaking the rendering flow.
+If you have also (legacy) unencrypted fields for some entities, you also can use the `.env` value:
+
+```dotenv
+DYNAMIC_ENCRYPTION_ON_DECRYPTION_ERROR_RETURN="raw"
+```
+(There are also the values `null` and `fail` for the policy.)
 
 1) Use Cast:
 ```php

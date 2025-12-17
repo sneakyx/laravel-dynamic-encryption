@@ -35,8 +35,17 @@ final class EncryptedNullableCast implements CastsAttributes
         try {
             return app('encrypter')->decryptString((string) $value);
         } catch (\Throwable $e) {
-            // Return the locked placeholder instead of throwing.
-            return new LockedEncryptedValue(attribute: $key, ownerId: method_exists($model, 'getKey') ? $model->getKey() : null);
+            $whatToDo = config('dynamic-encryption.on_decryption_error', 'placeholder');
+            if ($whatToDo === 'placeholder') {
+                // Return the locked placeholder instead of throwing.
+                return new LockedEncryptedValue(attribute: $key, ownerId: method_exists($model, 'getKey') ? $model->getKey() : null);
+            } elseif ($whatToDo === 'raw') {
+                return $value;
+            } elseif ($whatToDo === 'fail') {
+                throw $e;
+            } else {
+                return null;
+            }
         }
     }
 

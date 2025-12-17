@@ -29,5 +29,12 @@ return [
     //  - 'fail'      => throw and fail boot
     'on_missing_bundle' => env('DYNAMIC_ENCRYPTION_ON_MISSING_BUNDLE', 'block'),
 
+    // What if the value cannot be decrypted?
+    //  - 'placeholder'     => return a placeholder value (default)
+    //  - 'fail'            => throw and fail validation
+    //  - 'encrypted'       => return the encrypted value
+    //  - 'null'            => return null (fallback)
+    'on_decryption_error' => env('DYNAMIC_ENCRYPTION_ON_DECRYPTION_ERROR_RETURN', 'placeholder'),
+
     'chunk' => 200,
 ];
