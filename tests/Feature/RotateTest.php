@@ -2,7 +2,9 @@
 
 namespace Sneakyx\LaravelDynamicEncryption\Tests\Feature;
 
+use App\Models\AllSecret;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Sneakyx\LaravelDynamicEncryption\Providers\DynamicEncryptionServiceProvider;
@@ -23,8 +25,9 @@ class RotateTest extends Orchestra
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '',
         ]);
-        $app['config']->set('dynamic-encryption.storage', 'memcache');
-        $app['config']->set('dynamic-encryption.key', 'dynamic_encryption_key');
+        $app['config']->set('dynamic-encryption.storage', 'array');
+        $app['config']->set('dynamic-encryption.array', 'dynamic_encryption_key');
+        $app['config']->set('dynamic-encryption.key', 'password');
         $app['config']->set('dynamic-encryption.chunk', 50);
     }
 
@@ -43,26 +46,34 @@ class RotateTest extends Orchestra
     public function test_rotation_reencrypts_data_with_model_option(): void
     {
         $sm = $this->app->make(StorageManager::class);
-        $raw = random_bytes(32);
-        $sm->storeKey('base64:'.base64_encode($raw));
+        $rawOld = random_bytes(32);
+        $rawNew = random_bytes(32);
 
-        // Create data
-        TestSecret::create(['name' => 'A', 'token' => 'alpha']);
-        TestSecret::create(['name' => 'B', 'token' => 'beta']);
+        $bundle = [
+            'password' => 'base64:'.base64_encode($rawNew),
+            'old_password' => 'base64:'.base64_encode($rawOld),
+        ];
+        $this->app['cache']->forever('dynamic_encryption_key', $bundle);
 
-        // Capture current ciphertexts
-        $before = TestSecret::query()->get()->pluck('token')->all();
+        // Create data with old key
+        $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['old_password']);
+        $plain = 'alpha';
+        $cipher = 'dynenc:v1:'.$oldEncrypter->encryptString($plain);
+
+        DB::table('test_secrets')->insert([
+            'name' => 'A',
+            'token' => $cipher,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         // Run command with --model
         $this->artisan('encrypt:rotate', ['--model' => [TestSecret::class]])->assertExitCode(0);
 
         // Ensure ciphertext changed but plaintext still decrypts to same
-        $after = TestSecret::query()->get();
-        $this->assertNotSame($before[0], $after[0]->getOriginal('token'));
-        $this->assertNotSame($before[1], $after[1]->getOriginal('token'));
-
-        $this->assertSame('alpha', $after[0]->token);
-        $this->assertSame('beta', $after[1]->token);
+        $after = TestSecret::query()->first();
+        $this->assertNotSame($cipher, $after->getOriginal('token'));
+        $this->assertSame($plain, $after->token);
     }
 
     public function test_command_fails_without_all_or_model(): void
@@ -92,11 +103,27 @@ class AllSecret extends Model {
 PHP
         );
 
-        // Seed
-        TestSecret::create(['name' => 'C', 'token' => 'gamma']);
-
         $sm = $this->app->make(StorageManager::class);
-        $sm->storeKey('base64:'.base64_encode(random_bytes(32)));
+        $rawOld = random_bytes(32);
+        $rawNew = random_bytes(32);
+
+        $bundle = [
+            'password' => 'base64:'.base64_encode($rawNew),
+            'old_password' => 'base64:'.base64_encode($rawOld),
+        ];
+        $this->app['cache']->forever('dynamic_encryption_key', $bundle);
+
+        // Seed with old key
+        $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['old_password']);
+        $plain = 'gamma';
+        $cipher = 'dynenc:v1:'.$oldEncrypter->encryptString($plain);
+
+        DB::table('test_secrets')->insert([
+            'name' => 'C',
+            'token' => $cipher,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         // Run with --all
         $this->artisan('encrypt:rotate', ['--all' => true])->assertExitCode(0);
@@ -104,7 +131,7 @@ PHP
         // Cleanup created file
         @unlink($modelPath);
 
-        $this->assertSame('gamma', TestSecret::query()->first()->token);
+        $this->assertSame('gamma', AllSecret::query()->first()->token);
     }
 }
 

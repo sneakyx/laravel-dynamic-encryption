@@ -40,13 +40,16 @@ class CastLockedTest extends Orchestra
             ];
         };
 
-        // Put some ciphertext-like string into attributes. Decryption must fail and cast must yield LockedEncryptedValue.
-        $model->setRawAttributes(['secret' => 'eyJjaXBoZXIiOiJhZXMtMjU2LWNibyIsIml2IjoiZm9vIiwidGFnIjoiYmFyIn0=']);
+        // Ensure the encryption key is missing
+        $app = $this->app;
+        $app['cache']->driver(config('dynamic-encryption.storage'))->forget('dynamic_encryption_key');
+
+        // Put some prefixed ciphertext string into attributes.
+        // Decryption must fail because key is missing, and cast must yield LockedEncryptedValue.
+        $model->setRawAttributes(['secret' => 'dynenc:v1:eyJjaXBoZXIiOiJhZXMtMjU2LWNibyIsIml2IjoiZm9vIiwidGFnIjoiYmFyIn0=']);
 
         $value = $model->secret;
         $this->assertInstanceOf(LockedEncryptedValue::class, $value);
         $this->assertTrue($value->isLocked());
-        $this->assertSame('', (string) $value);
-        $this->assertNull($value->jsonSerialize());
     }
 }

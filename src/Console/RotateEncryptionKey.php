@@ -29,11 +29,23 @@ class RotateEncryptionKey extends Command
         }
 
         // get old key from storage
-        $oldKeyString = $storage->getKeyString(true);
+        try {
+            $oldKeyString = $storage->getKeyString(true);
+        } catch (\Throwable $e) {
+            $this->error('Old key not found: '.$e->getMessage());
+
+            return Command::FAILURE;
+        }
         $oldEncrypter = $storage->makeEncrypterFromKeyString($oldKeyString);
 
         // get new key from storage
-        $newKeyString = $storage->getKeyString(false);
+        try {
+            $newKeyString = $storage->getKeyString(false);
+        } catch (\Throwable $e) {
+            $this->error('New key not found: '.$e->getMessage());
+
+            return Command::FAILURE;
+        }
 
         if ($dryRun) {
             $this->info('Dry run: would use existing old and new keys to re-encrypt data.');

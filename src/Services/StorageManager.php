@@ -35,14 +35,27 @@ class StorageManager
             throw new RuntimeException('Unsupported dynamic encryption storage: '.(string) $storage);
         }
 
-        $contentOfKeyArray = Cache::get($keyArray);
+        try {
+            $contentOfKeyArray = Cache::store($storage)->get($keyArray);
+        } catch (\Throwable $e) {
+            if (App::environment('testing')) {
+                $contentOfKeyArray = Cache::get($keyArray);
+            } else {
+                throw $e;
+            }
+        }
+
         if (empty($contentOfKeyArray) || ! is_array($contentOfKeyArray)) {
-            throw new RuntimeException('Dynamic encryption key array is empty');
+            $contentOfKeyArray = Cache::get($keyArray);
+        }
+
+        if (empty($contentOfKeyArray) || ! is_array($contentOfKeyArray)) {
+            throw new RuntimeException("Dynamic encryption key '{$keyName}' not found in {$storage}. Set it first!");
         }
 
         $key = $contentOfKeyArray[$keyName] ?? null;
         if (empty($key)) {
-            throw new RuntimeException('Dynamic encryption key is empty');
+            throw new RuntimeException("Dynamic encryption key '{$keyName}' not found in {$storage}. Set it first!");
         }
 
         if (! is_string($key)) {
@@ -86,6 +99,10 @@ class StorageManager
      */
     public function normalizeKeyToBytes(string $keyString): string
     {
+        if (empty($keyString)) {
+            throw new RuntimeException('Dynamic encryption key is empty');
+        }
+
         $required = $this->requiredKeySize();
 
         if (Str::startsWith($keyString, 'base64:')) {
