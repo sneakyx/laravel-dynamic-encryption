@@ -26,14 +26,25 @@ final class EncryptedNullableCast implements CastsAttributes
 {
     use CheckCredentialsExist;
 
+    const STANDARD_PREFIX = 'dynenc:v1:';
+
     public function get(Model $model, string $key, $value, array $attributes): mixed
     {
         if ($value === null || $value === '') {
             return null;
         }
 
+        $raw = (string) $value;
+        $prefix = config('dynamic-encryption.prefix', $this::STANDARD_PREFIX);
+
+        if (! str_starts_with($raw, $prefix)) {
+            return $raw;
+        }
+
+        $ciphertext = substr($raw, strlen($prefix));
+
         try {
-            return app('encrypter')->decryptString((string) $value);
+            return app('encrypter')->decryptString($ciphertext);
         } catch (\Throwable $e) {
             $whatToDo = config('dynamic-encryption.on_decryption_error', 'placeholder');
             if ($whatToDo === 'placeholder') {
@@ -61,7 +72,11 @@ final class EncryptedNullableCast implements CastsAttributes
         }
 
         if ($this->checkCredentialsExist()) {
-            return app('encrypter')->encryptString((string) $value);
+            $prefix = config('dynamic-encryption.prefix', $this::STANDARD_PREFIX);
+            $encrypted = app('encrypter')->encryptString((string) $value);
+
+            // prefix has to be added
+            return $prefix.$encrypted;
 
         }
         $policy = strtolower((string) Config::get('dynamic-encryption.on_missing_bundle', 'block'));

@@ -36,5 +36,8 @@ return [
     //  - 'null'            => return null (fallback)
     'on_decryption_error' => env('DYNAMIC_ENCRYPTION_ON_DECRYPTION_ERROR_RETURN', 'placeholder'),
 
+    // standard-prefix setting for saving encrypted values to the database
+    'prefix' => env('DYNAMIC_ENCRYPTION_PREFIX', 'dynenc:v1:'),
+
     'chunk' => 200,
 ];
