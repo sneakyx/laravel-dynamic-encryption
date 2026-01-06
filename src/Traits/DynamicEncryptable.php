@@ -77,15 +77,16 @@ trait DynamicEncryptable
     protected static function decryptSilently(string $value): ?string
     {
         $prefix = config('dynamic-encryption.prefix', 'dynenc:v1:');
+        $ciphertext = $value;
         if (str_starts_with($value, $prefix)) {
-            $value = substr($value, strlen($prefix));
+            $ciphertext = substr($value, strlen($prefix));
         }
 
         try {
-            return app('encrypter')->decryptString($value);
+            return app('encrypter')->decryptString($ciphertext);
         } catch (\Throwable $e) {
-            // Do not log key material or ciphertext; simply return original if not decryptable.
-            return $value;
+            // Do not log key material or ciphertext; simply return original (without prefix if it had one) if not decryptable.
+            return $ciphertext;
         }
     }
 

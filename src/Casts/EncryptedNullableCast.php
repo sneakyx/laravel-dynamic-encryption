@@ -51,7 +51,7 @@ final class EncryptedNullableCast implements CastsAttributes
                 // Return the locked placeholder instead of throwing.
                 return new LockedEncryptedValue(attribute: $key, ownerId: method_exists($model, 'getKey') ? $model->getKey() : null);
             } elseif ($whatToDo === 'raw') {
-                return $value;
+                return $ciphertext;
             } elseif ($whatToDo === 'fail') {
                 throw $e;
             } else {
