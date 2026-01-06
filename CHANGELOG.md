@@ -22,6 +22,10 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 ### Security
 -
 
+## [0.2.3] - 2026-01-06
+### Fixed
+- version mismatch check in composer.json
+
 ## [0.2.2] - 2026-01-06
 ### Added
 - Translation for not-encryptable attributes
