@@ -9,16 +9,23 @@ trait CheckCredentialsExist
 {
     public function checkCredentialsExist(): bool
     {
+        return static::checkCredentialsExistStatic();
+    }
 
-        if (! Cache::store(Config::get('dynamic-encryption.storage'))->has(Config::get('dynamic-encryption.array'))) {
+    public static function checkCredentialsExistStatic(): bool
+    {
+        $storage = Config::get('dynamic-encryption.storage');
+        $arrayKey = Config::get('dynamic-encryption.array');
+        $fieldKey = Config::get('dynamic-encryption.key');
+
+        if (! Cache::store($storage)->has($arrayKey)) {
             return false;
         }
-        $dynamicEncryptionArray = Cache::store(Config::get('dynamic-encryption.storage'))->get(Config::get('dynamic-encryption.array'));
-        if (! array_key_exists(Config::get('dynamic-encryption.key'), $dynamicEncryptionArray)) {
+        $dynamicEncryptionArray = Cache::store($storage)->get($arrayKey);
+        if (! is_array($dynamicEncryptionArray) || ! array_key_exists($fieldKey, $dynamicEncryptionArray)) {
             return false;
         }
 
         return true;
-
     }
 }

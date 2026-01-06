@@ -7,6 +7,7 @@ use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
+use Sneakyx\LaravelDynamicEncryption\Console\AddEncryptionPrefix;
 use Sneakyx\LaravelDynamicEncryption\Console\RotateEncryptionKey;
 use Sneakyx\LaravelDynamicEncryption\Services\DynamicEncrypter;
 use Sneakyx\LaravelDynamicEncryption\Services\StorageManager;
@@ -78,6 +79,7 @@ class DynamicEncryptionServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 RotateEncryptionKey::class,
+                AddEncryptionPrefix::class,
             ]);
         }
     }

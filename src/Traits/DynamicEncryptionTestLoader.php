@@ -27,7 +27,7 @@ trait DynamicEncryptionTestLoader
             return;
         }
 
-        $bundle = Cache::get($arrayKey);
+        $bundle = Cache::store($store)->get($arrayKey);
         if (! is_array($bundle)) {
             $bundle = [];
         }

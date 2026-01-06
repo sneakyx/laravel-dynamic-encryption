@@ -36,7 +36,7 @@ trait DynamicEncryptable
                     continue;
                 }
 
-                if (! $this->checkCredentialsExist()) {
+                if (! static::checkCredentialsExistStatic()) {
                     if ($policy === 'block') {
                         throw ValidationException::withMessages([
                             $field => __('Saving not possible now: Dynamic encryption key is not available. Please contact an administrator.'),
@@ -55,8 +55,10 @@ trait DynamicEncryptable
                 // Avoid double-encrypt: try decrypt; on failure, assume plain and encrypt
                 $alreadyDecrypted = static::attemptDecrypt($value);
                 $toStore = $alreadyDecrypted === null ? $value : $alreadyDecrypted; // if null, decrypt failed
-                $encrypted = app('encrypter')->encryptString($toStore);
-                $model->setAttribute($field, $encrypted);
+
+                $prefix = config('dynamic-encryption.prefix', 'dynenc:v1:');
+                $encrypted = app('encrypter')->encryptString((string) $toStore);
+                $model->setAttribute($field, $prefix.$encrypted);
             }
         });
 
@@ -74,20 +76,36 @@ trait DynamicEncryptable
 
     protected static function decryptSilently(string $value): ?string
     {
+        $prefix = config('dynamic-encryption.prefix', 'dynenc:v1:');
+        $ciphertext = $value;
+        if (str_starts_with($value, $prefix)) {
+            $ciphertext = substr($value, strlen($prefix));
+        }
+
         try {
-            return app('encrypter')->decryptString($value);
+            return app('encrypter')->decryptString($ciphertext);
         } catch (\Throwable $e) {
-            // Do not log key material or ciphertext; simply return original if not decryptable.
-            return $value;
+            // Do not log key material or ciphertext; simply return original (without prefix if it had one) if not decryptable.
+            return $ciphertext;
         }
     }
 
     protected static function attemptDecrypt(string $value): ?string
     {
+        $prefix = config('dynamic-encryption.prefix', 'dynenc:v1:');
+        if (str_starts_with($value, $prefix)) {
+            $value = substr($value, strlen($prefix));
+        }
+
         try {
             return app('encrypter')->decryptString($value);
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    public function getEncryptableAttributes(): array
+    {
+        return $this->encryptable ?? [];
     }
 }

@@ -29,11 +29,23 @@ class RotateEncryptionKey extends Command
         }
 
         // get old key from storage
-        $oldKeyString = $storage->getKeyString(true);
+        try {
+            $oldKeyString = $storage->getKeyString(true);
+        } catch (\Throwable $e) {
+            $this->error('Old key not found: '.$e->getMessage());
+
+            return Command::FAILURE;
+        }
         $oldEncrypter = $storage->makeEncrypterFromKeyString($oldKeyString);
 
         // get new key from storage
-        $newKeyString = $storage->getKeyString(false);
+        try {
+            $newKeyString = $storage->getKeyString(false);
+        } catch (\Throwable $e) {
+            $this->error('New key not found: '.$e->getMessage());
+
+            return Command::FAILURE;
+        }
 
         if ($dryRun) {
             $this->info('Dry run: would use existing old and new keys to re-encrypt data.');
@@ -55,7 +67,7 @@ class RotateEncryptionKey extends Command
 
             $this->info("Re-encrypting model: {$fqcn}");
             $model = new $fqcn;
-            $encryptable = $model->encryptable ?? [];
+            $encryptable = method_exists($model, 'getEncryptableAttributes') ? $model->getEncryptableAttributes() : ($model->encryptable ?? []);
             if (empty($encryptable)) {
                 $this->warn("Model {$fqcn} has no encryptable fields.");
 
@@ -72,13 +84,27 @@ class RotateEncryptionKey extends Command
                         if (is_null($val)) {
                             continue;
                         }
+
+                        $prefix = config('dynamic-encryption.prefix', 'dynenc:v1:');
+                        $ciphertext = $val;
+                        $hasPrefix = str_starts_with($val, $prefix);
+
+                        if ($hasPrefix) {
+                            $ciphertext = substr($val, strlen($prefix));
+                        }
+
                         try {
-                            $decrypted = $oldEncrypter->decryptString($val);
+                            $decrypted = $oldEncrypter->decryptString($ciphertext);
                         } catch (\Throwable $e) {
                             // cannot decrypt with the old key, skip this field
                             continue;
                         }
+
                         $reencrypted = $newEncrypter->encryptString($decrypted);
+                        if ($hasPrefix) {
+                            $reencrypted = $prefix.$reencrypted;
+                        }
+
                         if ($reencrypted !== $val) {
                             $row->setAttribute($field, $reencrypted);
                             $dirty = true;
@@ -106,7 +132,7 @@ class RotateEncryptionKey extends Command
         foreach (scandir($modelPath) as $file) {
             if (str_ends_with($file, '.php')) {
                 $class = 'App\\Models\\'.str_replace('.php', '', $file);
-                if (class_exists($class) && in_array(DynamicEncryptable::class, class_uses($class))) {
+                if (class_exists($class) && in_array(DynamicEncryptable::class, class_uses_recursive($class))) {
                     $models[] = $class;
                 }
             }

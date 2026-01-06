@@ -4,7 +4,8 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 ### Added
--
+- Added `encrypt:add-prefix` command to migrate legacy encrypted data (without prefix) to the new versioned prefix format.
+- Added documentation about data prefixing and migration to README.md.
 
 ### Changed
 -
@@ -20,6 +21,14 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ### Security
 -
+
+## [0.2.0] - 2026-01-05
+### Added
+- Versioned data prefixes (default: `dynenc:v1:`) to reliably distinguish between legacy plaintext and encrypted ciphertext.
+- Configuration option `dynamic-encryption.prefix`.
+
+### Changed
+- [BREAKING] The cast now expects a prefix to attempt decryption. Data without a prefix is treated as plaintext.
 
 ## [0.1.4] - 2025-12-04
 ### Added

@@ -7,10 +7,14 @@ use Illuminate\Support\Facades\Config;
 
 class DynamicEncrypter extends BaseEncrypter
 {
+    protected StorageManager $storageManager;
+
     public function __construct(StorageManager $storageManager)
     {
-        $key = $storageManager->getKeyBytes();
+        $this->storageManager = $storageManager;
         $cipher = Config::get('app.cipher', 'aes-256-cbc');
+        $key = $storageManager->getKeyBytes();
+
         parent::__construct($key, $cipher);
     }
 }

@@ -144,6 +144,37 @@ Note: `LockedEncryptedValue` is string-/JSON-serializable (returns an empty stri
 The package expects a key bundle (array) in your cache under `DYNAMIC_ENCRYPTION_CACHE_KEY`.
 Read more: [Where is the key?](docs/where-is-the-key.md)
 
+## Data Prefixing (Versioned Encryption)
+
+Starting with version 0.2.0, encrypted values are stored with a versioned prefix (default: `dynenc:v1:`). This allows the system to reliably distinguish between:
+1.  **Encrypted ciphertext:** Values starting with the prefix.
+2.  **Legacy plaintext:** Values without the prefix (e.g., from before the encryption was enabled).
+
+### Why use a prefix?
+Without a prefix, it's difficult to know if a string in the database is already encrypted or if it's still plaintext. Attempting to decrypt plaintext usually results in a decryption error. With the prefix, the `EncryptedNullableCast` can safely return the raw value if no prefix is found, preventing errors during migration or partial rollouts.
+
+### Migration Command
+If you have data that was encrypted with an older version of this package (without a prefix), you can use the following command to add the prefix to existing ciphertexts:
+
+```bash
+php artisan encrypt:add-prefix --all
+```
+
+Options:
+- `--model=FQCN`: Process specific models (can be repeated).
+- `--all`: Process all models using the `DynamicEncryptable` trait or `EncryptedNullableCast`.
+- `--from="2025-01-01 00:00:00"`: Only process records updated after this date.
+- `--to="2025-12-31 23:59:59"`: Only process records updated before this date.
+- `--dry-run`: Show what would be updated without changing the database.
+
+The command only adds the prefix if the value:
+1.  Does not already have the prefix.
+2.  Starts with `eyJpdiI` (typical Laravel Base64-encoded encryption payload).
+3.  Is longer than 20 characters.
+4.  Contains a valid JSON structure with `iv`, `value`, and `mac` fields.
+
+But be careful, there is a theoretical possibility that unencrypted Data is misinterpreted.
+
 ## Key Rotation
 Re-encrypt existing data from an old key/password to a new one:
 ```bash

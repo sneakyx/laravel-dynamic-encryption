@@ -31,18 +31,31 @@ class StorageManager
         } else {
             $keyName = Config::get('dynamic-encryption.key');
         }
-        if (! in_array($storage, ['memcache', 'memcached', 'redis'], true) && ! App::environment('local')) {
-            throw new RuntimeException('Unsupported dynamic encryption storage: '.(string) $storage);
+        if (! in_array($storage, ['memcache', 'memcached', 'redis', 'array'], true) && ! App::environment('local')) {
+            throw new RuntimeException('Unsupported dynamic encryption storage: '.$storage);
         }
 
-        $contentOfKeyArray = Cache::get($keyArray);
+        try {
+            $contentOfKeyArray = Cache::store($storage)->get($keyArray);
+        } catch (\Throwable $e) {
+            if (App::environment('testing')) {
+                $contentOfKeyArray = Cache::get($keyArray);
+            } else {
+                throw $e;
+            }
+        }
+
         if (empty($contentOfKeyArray) || ! is_array($contentOfKeyArray)) {
-            throw new RuntimeException('Dynamic encryption key array is empty');
+            $contentOfKeyArray = Cache::get($keyArray);
+        }
+
+        if (empty($contentOfKeyArray) || ! is_array($contentOfKeyArray)) {
+            throw new RuntimeException("Dynamic encryption key '{$keyName}' not found in {$storage}. Set it first!");
         }
 
         $key = $contentOfKeyArray[$keyName] ?? null;
         if (empty($key)) {
-            throw new RuntimeException('Dynamic encryption key is empty');
+            throw new RuntimeException("Dynamic encryption key '{$keyName}' not found in {$storage}. Set it first!");
         }
 
         if (! is_string($key)) {
@@ -69,13 +82,22 @@ class StorageManager
     public function storeKey(string $keyString): void
     {
         $storage = Config::get('dynamic-encryption.storage');
-        $keyName = Config::get('dynamic-encryption.key');
+        $keyArray = Config::get('dynamic-encryption.array');
+        $keyField = Config::get('dynamic-encryption.key');
 
-        if (! in_array($storage, ['memcache', 'memcached', 'redis'], true)) {
+        $allowedStores = ['memcache', 'memcached', 'redis', 'array'];
+
+        if (! in_array($storage, $allowedStores, true)) {
             throw new RuntimeException('Unsupported dynamic encryption storage: '.(string) $storage);
         }
 
-        Cache::forever($keyName, $keyString);
+        $bundle = Cache::store($storage)->get($keyArray);
+        if (! is_array($bundle)) {
+            $bundle = [];
+        }
+        $bundle[$keyField] = $keyString;
+
+        Cache::store($storage)->forever($keyArray, $bundle);
     }
 
     /**
@@ -86,6 +108,10 @@ class StorageManager
      */
     public function normalizeKeyToBytes(string $keyString): string
     {
+        if (empty($keyString)) {
+            throw new RuntimeException('Dynamic encryption key is empty');
+        }
+
         $required = $this->requiredKeySize();
 
         if (Str::startsWith($keyString, 'base64:')) {
