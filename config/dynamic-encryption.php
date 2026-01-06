@@ -33,7 +33,9 @@ return [
     //  - 'placeholder'     => return a placeholder value (default)
     //  - 'fail'            => throw and fail validation
     //  - 'encrypted'       => return the encrypted value
+    //  - 'raw'             => return the raw value of the encrypted field
     //  - 'null'            => return null (fallback)
+    // ATTENTION: if the field doesn't start with the prefix, it is assumed that this is a legacy value, and it is always returned raw
     'on_decryption_error' => env('DYNAMIC_ENCRYPTION_ON_DECRYPTION_ERROR_RETURN', 'placeholder'),
 
     // standard-prefix setting for saving encrypted values to the database

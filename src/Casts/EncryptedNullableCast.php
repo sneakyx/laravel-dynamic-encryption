@@ -38,6 +38,7 @@ final class EncryptedNullableCast implements CastsAttributes
         $prefix = config('dynamic-encryption.prefix', $this::STANDARD_PREFIX);
 
         if (! str_starts_with($raw, $prefix)) {
+            // must be still unencrypted
             return $raw;
         }
 
@@ -51,7 +52,7 @@ final class EncryptedNullableCast implements CastsAttributes
                 // Return the locked placeholder instead of throwing.
                 return new LockedEncryptedValue(attribute: $key, ownerId: method_exists($model, 'getKey') ? $model->getKey() : null);
             } elseif ($whatToDo === 'raw') {
-                return $ciphertext;
+                return $raw;
             } elseif ($whatToDo === 'fail') {
                 throw $e;
             } else {

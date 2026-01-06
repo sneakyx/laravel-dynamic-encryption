@@ -22,6 +22,11 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 ### Security
 -
 
+## [0.2.1] - 2026-01-06
+### Changed
+- docu in dynamic-encryption.php corrected
+- EncryptedNullableCast returns really the raw value from table (with prefix) - to avoid misunderstandings
+
 ## [0.2.0] - 2026-01-05
 ### Added
 - Versioned data prefixes (default: `dynenc:v1:`) to reliably distinguish between legacy plaintext and encrypted ciphertext.
