@@ -49,6 +49,8 @@ class DynamicEncryptionServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadTranslationsFrom(__DIR__.'/../../resources/lang', 'dynamic-encryption');
+
         // Publish config
         $this->publishes([
             __DIR__.'/../../config/dynamic-encryption.php' => config_path('dynamic-encryption.php'),

@@ -87,7 +87,7 @@ final class EncryptedNullableCast implements CastsAttributes
         }
         // Default and 'block' → stop saving; 'fail' behaves the same here.
         throw ValidationException::withMessages([
-            $key => __('Saving not possible: Dynamic encryption key is not available. Please contact an administrator.'),
+            $key => __('dynamic-encryption::messages.saving_failed_key_missing'),
         ]);
 
     }
