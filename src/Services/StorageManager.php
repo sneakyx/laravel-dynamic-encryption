@@ -31,7 +31,15 @@ class StorageManager
         } else {
             $keyName = Config::get('dynamic-encryption.key');
         }
-        if (! in_array($storage, ['memcache', 'memcached', 'redis'], true) && ! App::environment('local')) {
+
+        // Allow only specific stores in non-local/non-testing environments
+        $allowedStores = ['memcache', 'memcached', 'redis'];
+        if (App::environment(['local', 'testing'])) {
+            $allowedStores[] = 'array';
+            $allowedStores[] = 'file';
+        }
+
+        if (! in_array($storage, $allowedStores, true)) {
             throw new RuntimeException('Unsupported dynamic encryption storage: '.(string) $storage);
         }
 
@@ -82,13 +90,26 @@ class StorageManager
     public function storeKey(string $keyString): void
     {
         $storage = Config::get('dynamic-encryption.storage');
-        $keyName = Config::get('dynamic-encryption.key');
+        $keyArray = Config::get('dynamic-encryption.array');
+        $keyField = Config::get('dynamic-encryption.key');
 
-        if (! in_array($storage, ['memcache', 'memcached', 'redis'], true)) {
+        $allowedStores = ['memcache', 'memcached', 'redis'];
+        if (App::environment(['local', 'testing'])) {
+            $allowedStores[] = 'array';
+            $allowedStores[] = 'file';
+        }
+
+        if (! in_array($storage, $allowedStores, true)) {
             throw new RuntimeException('Unsupported dynamic encryption storage: '.(string) $storage);
         }
 
-        Cache::forever($keyName, $keyString);
+        $bundle = Cache::store($storage)->get($keyArray);
+        if (! is_array($bundle)) {
+            $bundle = [];
+        }
+        $bundle[$keyField] = $keyString;
+
+        Cache::store($storage)->forever($keyArray, $bundle);
     }
 
     /**

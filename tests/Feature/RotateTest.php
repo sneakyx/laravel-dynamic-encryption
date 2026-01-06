@@ -2,7 +2,6 @@
 
 namespace Sneakyx\LaravelDynamicEncryption\Tests\Feature;
 
-use App\Models\AllSecret;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -53,7 +52,7 @@ class RotateTest extends Orchestra
             'password' => 'base64:'.base64_encode($rawNew),
             'old_password' => 'base64:'.base64_encode($rawOld),
         ];
-        $this->app['cache']->forever('dynamic_encryption_key', $bundle);
+        $this->app['cache']->store('array')->forever('dynamic_encryption_key', $bundle);
 
         // Create data with old key
         $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['old_password']);
@@ -103,6 +102,9 @@ class AllSecret extends Model {
 PHP
         );
 
+        // Include the file so class_exists() returns true in the command
+        require_once $modelPath;
+
         $sm = $this->app->make(StorageManager::class);
         $rawOld = random_bytes(32);
         $rawNew = random_bytes(32);
@@ -111,7 +113,7 @@ PHP
             'password' => 'base64:'.base64_encode($rawNew),
             'old_password' => 'base64:'.base64_encode($rawOld),
         ];
-        $this->app['cache']->forever('dynamic_encryption_key', $bundle);
+        $this->app['cache']->store('array')->forever('dynamic_encryption_key', $bundle);
 
         // Seed with old key
         $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['old_password']);
@@ -126,12 +128,14 @@ PHP
         ]);
 
         // Run with --all
-        $this->artisan('encrypt:rotate', ['--all' => true])->assertExitCode(0);
+        $this->artisan('encrypt:rotate', ['--all' => true])
+            ->expectsOutputToContain('Re-encrypting model: App\Models\AllSecret')
+            ->assertExitCode(0);
+
+        $this->assertSame('gamma', \App\Models\AllSecret::query()->first()->token);
 
         // Cleanup created file
         @unlink($modelPath);
-
-        $this->assertSame('gamma', AllSecret::query()->first()->token);
     }
 }
 

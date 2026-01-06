@@ -156,7 +156,9 @@ class AddEncryptionPrefix extends Command
         $fields = [];
 
         // From Trait
-        if (isset($model->encryptable)) {
+        if (method_exists($model, 'getEncryptableAttributes')) {
+            $fields = array_merge($fields, $model->getEncryptableAttributes());
+        } elseif (isset($model->encryptable)) {
             $fields = array_merge($fields, $model->encryptable);
         }
 

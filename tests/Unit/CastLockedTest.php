@@ -20,8 +20,8 @@ class CastLockedTest extends Orchestra
         // app key for framework encrypter (used as fallback only for internals)
         $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
 
-        // Configure dynamic encryption to a memcache store, but do NOT provide a bundle → missing
-        $app['config']->set('dynamic-encryption.storage', 'memcache');
+        // Configure dynamic encryption to an array store, but do NOT provide a bundle → missing
+        $app['config']->set('dynamic-encryption.storage', 'array');
         $app['config']->set('dynamic-encryption.array', 'dynamic_encryption_key');
         $app['config']->set('dynamic-encryption.key', 'password');
         $app['config']->set('dynamic-encryption.kdf_salt', 'test-salt');

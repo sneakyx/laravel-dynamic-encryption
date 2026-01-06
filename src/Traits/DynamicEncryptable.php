@@ -102,4 +102,9 @@ trait DynamicEncryptable
             return null;
         }
     }
+
+    public function getEncryptableAttributes(): array
+    {
+        return $this->encryptable ?? [];
+    }
 }
