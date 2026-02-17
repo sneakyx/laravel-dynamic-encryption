@@ -175,6 +175,31 @@ The command only adds the prefix if the value:
 
 But be careful, there is a theoretical possibility that unencrypted Data is misinterpreted.
 
+### Decrypt encrypted fields and store plaintext
+Use this if you need to permanently decrypt encrypted values in your database for specific models/fields:
+
+```bash
+php artisan encrypt:decrypt --model=App\\Models\\Secret --field=iban --field=note
+# or everything
+php artisan encrypt:decrypt --all
+```
+
+- Decrypts values that are recognized as encrypted (with the configured prefix) and writes back the plaintext.
+- Supports `--model` (repeatable), `--field` (repeatable), `--all`, and `--dry-run`.
+
+### Encrypt any still-plaintext values in bulk
+Use this when you have legacy plaintext in encryptable fields and want to encrypt them in one go:
+
+```bash
+php artisan encrypt:encrypt --model=App\\Models\\Secret --field=iban
+# or everything
+php artisan encrypt:encrypt --all
+```
+
+- Encrypts values that do not start with the configured prefix and are not already legacy-structured ciphertexts.
+- Writes back with the current prefix and current dynamic encrypter.
+- Supports `--model` (repeatable), `--field` (repeatable), `--all`, and `--dry-run`.
+
 ## Key Rotation
 Re-encrypt existing data from an old key/password to a new one:
 ```bash

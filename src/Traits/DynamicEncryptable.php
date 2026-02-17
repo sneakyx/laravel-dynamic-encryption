@@ -4,6 +4,7 @@ namespace Sneakyx\LaravelDynamicEncryption\Traits;
 
 use Illuminate\Support\Facades\Config;
 use Illuminate\Validation\ValidationException;
+use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 
 trait DynamicEncryptable
 {
@@ -106,6 +107,10 @@ trait DynamicEncryptable
 
     public function getEncryptableAttributes(): array
     {
-        return $this->encryptable ?? [];
+        $casts = method_exists($this, 'casts') ? $this->casts() : [];
+
+        return array_keys(array_filter($casts, function ($castType) {
+            return $castType === EncryptedNullableCast::class;
+        }));
     }
 }

@@ -4,23 +4,30 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 ### Added
-- Added `encrypt:add-prefix` command to migrate legacy encrypted data (without prefix) to the new versioned prefix format.
-- Added documentation about data prefixing and migration to README.md.
+- (none)
 
 ### Changed
--
+- (none)
 
 ### Fixed
--
+- (none)
 
 ### Deprecated
--
+- (none)
 
 ### Removed
--
+- (none)
 
 ### Security
--
+- (none)
+
+## [0.2.4] - 2026-02-17
+### Added
+- New artisan command `encrypt:decrypt` to decrypt encrypted fields of specified/all models and store plaintext in DB (supports --model, --field, --all, --dry-run).
+- New artisan command `encrypt:encrypt` to encrypt any still-plaintext values for specified/all models in one go (supports --model, --field, --all, --dry-run).
+- Documentation for both commands (README.md).
+- Added `encrypt:add-prefix` command to migrate legacy encrypted data (without prefix) to the new versioned prefix format.
+- Added documentation about data prefixing and migration to README.md.
 
 ## [0.2.3] - 2026-01-06
 ### Fixed
