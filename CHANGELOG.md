@@ -20,6 +20,9 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ### Security
 - (none)
+## [0.2.5] - 2026-02-17
+### Fixed
+- Pinting
 
 ## [0.2.4] - 2026-02-17
 ### Added

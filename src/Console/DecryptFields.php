@@ -51,7 +51,7 @@ class DecryptFields extends Command
 
             $encryptedFields = $this->getEncryptedFields($modelInstance);
 
-            $fieldsToProcess = !empty($specificFields)
+            $fieldsToProcess = ! empty($specificFields)
                 ? array_intersect($specificFields, $encryptedFields)
                 : $encryptedFields;
 

@@ -84,7 +84,7 @@ class EncryptFieldsTest extends Orchestra
             '--model' => [EncryptModel::class],
             '--dry-run' => true,
         ])->expectsOutputToContain('Encrypted 1 records for Sneakyx\LaravelDynamicEncryption\Tests\Feature\EncryptModel (dry run)')
-          ->assertExitCode(0);
+            ->assertExitCode(0);
 
         $this->assertSame($plain, DB::table('encrypt_models')->first()->secret_cast);
     }

@@ -87,7 +87,7 @@ class DecryptFieldsTest extends Orchestra
             '--model' => [DecryptModel::class],
             '--dry-run' => true,
         ])->expectsOutputToContain('Decrypted 1 records for Sneakyx\LaravelDynamicEncryption\Tests\Feature\DecryptModel (dry run)')
-          ->assertExitCode(0);
+            ->assertExitCode(0);
 
         $this->assertSame($prefixed, DB::table('decrypt_models')->first()->secret_cast);
     }

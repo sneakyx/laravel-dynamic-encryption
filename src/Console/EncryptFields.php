@@ -52,7 +52,7 @@ class EncryptFields extends Command
 
             $encryptedFields = $this->getEncryptedFields($modelInstance);
 
-            $fieldsToProcess = !empty($specificFields)
+            $fieldsToProcess = ! empty($specificFields)
                 ? array_intersect($specificFields, $encryptedFields)
                 : $encryptedFields;
 
@@ -82,10 +82,10 @@ class EncryptFields extends Command
 
                         // We also check if it's potentially encrypted without prefix (legacy)
                         if (strlen($value) > 20 && str_starts_with($value, 'eyJpdiI')) {
-                             $decoded = json_decode(base64_decode($value), true);
-                             if (is_array($decoded) && isset($decoded['iv'], $decoded['value'], $decoded['mac'])) {
-                                 continue;
-                             }
+                            $decoded = json_decode(base64_decode($value), true);
+                            if (is_array($decoded) && isset($decoded['iv'], $decoded['value'], $decoded['mac'])) {
+                                continue;
+                            }
                         }
 
                         $encrypted = app('encrypter')->encryptString((string) $value);
