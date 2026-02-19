@@ -3,8 +3,10 @@
 namespace Sneakyx\LaravelDynamicEncryption\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 use Sneakyx\LaravelDynamicEncryption\Services\StorageManager;
 use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
@@ -25,7 +27,7 @@ class RotateEncryptionKey extends Command
             return Command::FAILURE;
         }
         if ($this->option('all')) {
-            $models = $this->findAllModelsWithEncryptable();
+            $models = $this->findAllModelsWithEncryption();
         }
 
         // get old key from storage
@@ -66,15 +68,15 @@ class RotateEncryptionKey extends Command
             }
 
             $this->info("Re-encrypting model: {$fqcn}");
-            $model = new $fqcn;
-            $encryptable = method_exists($model, 'getEncryptableAttributes') ? $model->getEncryptableAttributes() : ($model->encryptable ?? []);
+            $modelInstance = new $fqcn;
+            $encryptable = $this->getEncryptedFields($modelInstance);
             if (empty($encryptable)) {
                 $this->warn("Model {$fqcn} has no encryptable fields.");
 
                 continue;
             }
 
-            $model->newQuery()->select(['id'])->orderBy('id')->chunk($chunk, function ($items) use ($fqcn, $encryptable, $oldEncrypter, $newEncrypter, $dryRun) {
+            $modelInstance->newQuery()->select(['id'])->orderBy('id')->chunk($chunk, function ($items) use ($fqcn, $encryptable, $oldEncrypter, $newEncrypter, $dryRun) {
                 foreach ($items as $item) {
                     // Reload full row
                     $row = $fqcn::query()->find($item->id);
@@ -122,7 +124,7 @@ class RotateEncryptionKey extends Command
         return Command::SUCCESS;
     }
 
-    protected function findAllModelsWithEncryptable(): array
+    protected function findAllModelsWithEncryption(): array
     {
         $models = [];
         $modelPath = app_path('Models');
@@ -132,12 +134,49 @@ class RotateEncryptionKey extends Command
         foreach (scandir($modelPath) as $file) {
             if (str_ends_with($file, '.php')) {
                 $class = 'App\\Models\\'.str_replace('.php', '', $file);
-                if (class_exists($class) && in_array(DynamicEncryptable::class, class_uses_recursive($class))) {
-                    $models[] = $class;
+                if (class_exists($class)) {
+                    $instance = new $class;
+                    if ($this->hasEncryption($instance)) {
+                        $models[] = $class;
+                    }
                 }
             }
         }
 
         return $models;
+    }
+
+    protected function hasEncryption(Model $model): bool
+    {
+        if (in_array(DynamicEncryptable::class, class_uses_recursive($model))) {
+            return true;
+        }
+
+        foreach ($model->getCasts() as $cast) {
+            if ($cast === EncryptedNullableCast::class || (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function getEncryptedFields(Model $model): array
+    {
+        $fields = [];
+
+        if (method_exists($model, 'getEncryptableAttributes')) {
+            $fields = array_merge($fields, $model->getEncryptableAttributes());
+        } elseif (isset($model->encryptable)) {
+            $fields = array_merge($fields, $model->encryptable);
+        }
+
+        foreach ($model->getCasts() as $field => $cast) {
+            if ($cast === EncryptedNullableCast::class || (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
+                $fields[] = $field;
+            }
+        }
+
+        return array_unique($fields);
     }
 }
