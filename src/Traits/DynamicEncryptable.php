@@ -12,7 +12,7 @@ trait DynamicEncryptable
 
     public static function bootDynamicEncryptable(): void
     {
-        static::warnIfLegacyEncryptableUsed(new static());
+        static::warnIfLegacyEncryptableUsed(new static);
 
         static::retrieved(function ($model) {
             $encryptable = $model->getEncryptableAttributes();
