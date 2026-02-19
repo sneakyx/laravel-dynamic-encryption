@@ -12,8 +12,10 @@ trait DynamicEncryptable
 
     public static function bootDynamicEncryptable(): void
     {
+        static::warnIfLegacyEncryptableUsed(new static());
+
         static::retrieved(function ($model) {
-            $encryptable = $model->encryptable ?? [];
+            $encryptable = $model->getEncryptableAttributes();
             foreach ($encryptable as $field) {
                 $value = $model->getAttribute($field);
                 if (! is_null($value)) {
@@ -23,7 +25,7 @@ trait DynamicEncryptable
         });
 
         static::saving(function ($model) {
-            $encryptable = $model->encryptable ?? [];
+            $encryptable = $model->getEncryptableAttributes();
             $policy = strtolower((string) Config::get('dynamic-encryption.on_missing_bundle', 'block'));
 
             foreach ($encryptable as $field) {
@@ -65,7 +67,7 @@ trait DynamicEncryptable
 
         static::saved(function ($model) {
             // After save, set decrypted values back for in-memory usage
-            $encryptable = $model->encryptable ?? [];
+            $encryptable = $model->getEncryptableAttributes();
             foreach ($encryptable as $field) {
                 $value = $model->getAttribute($field);
                 if (! is_null($value)) {
@@ -73,6 +75,17 @@ trait DynamicEncryptable
                 }
             }
         });
+    }
+
+    protected static function warnIfLegacyEncryptableUsed($model): void
+    {
+        static $warned = [];
+        $class = get_class($model);
+
+        if (! isset($warned[$class]) && property_exists($model, 'encryptable')) {
+            \Illuminate\Support\Facades\Log::warning("Model {$class} uses deprecated \$encryptable property. Please migrate to Casts with EncryptedNullableCast::class");
+            $warned[$class] = true;
+        }
     }
 
     protected static function decryptSilently(string $value): ?string

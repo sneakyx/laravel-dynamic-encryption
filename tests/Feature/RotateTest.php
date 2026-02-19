@@ -67,7 +67,7 @@ class RotateTest extends Orchestra
         ]);
 
         // Run command with --model
-        $this->artisan('encrypt:rotate', ['--model' => [TestSecret::class]])->assertExitCode(0);
+        $this->artisan('dynamic-encrypter:rotate', ['--model' => [TestSecret::class]])->assertExitCode(0);
 
         // Ensure ciphertext changed but plaintext still decrypts to same
         $after = TestSecret::query()->first();
@@ -77,7 +77,7 @@ class RotateTest extends Orchestra
 
     public function test_command_fails_without_all_or_model(): void
     {
-        $this->artisan('encrypt:rotate')->expectsOutputToContain('No models specified')->assertExitCode(\Illuminate\Console\Command::FAILURE);
+        $this->artisan('dynamic-encrypter:rotate')->expectsOutputToContain('No models specified')->assertExitCode(\Illuminate\Console\Command::FAILURE);
     }
 
     public function test_all_discovers_encryptable_models(): void
@@ -93,11 +93,14 @@ class RotateTest extends Orchestra
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
+use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 class AllSecret extends Model {
     use DynamicEncryptable;
     protected $table = 'test_secrets';
     protected $fillable = ['name','token'];
-    protected array $encryptable = ['token'];
+    protected function casts(): array {
+        return ['token' => EncryptedNullableCast::class];
+    }
 }
 PHP
         );
@@ -128,7 +131,7 @@ PHP
         ]);
 
         // Run with --all
-        $this->artisan('encrypt:rotate', ['--all' => true])
+        $this->artisan('dynamic-encrypter:rotate', ['--all' => true])
             ->expectsOutputToContain('Re-encrypting model: App\Models\AllSecret')
             ->assertExitCode(0);
 
@@ -147,5 +150,10 @@ class TestSecret extends \Illuminate\Database\Eloquent\Model
 
     protected $fillable = ['name', 'token'];
 
-    protected array $encryptable = ['token'];
+    protected function casts(): array
+    {
+        return [
+            'token' => \Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast::class,
+        ];
+    }
 }

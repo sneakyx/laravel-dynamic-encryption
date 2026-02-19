@@ -60,7 +60,7 @@ class AddEncryptionPrefixTest extends Orchestra
             'updated_at' => now(),
         ]);
 
-        $this->artisan('encrypt:add-prefix', ['--model' => [PrefixedTestModel::class]])
+        $this->artisan('dynamic-encrypter:add-prefix', ['--model' => [PrefixedTestModel::class]])
             ->expectsOutputToContain('Updated 1 records for Sneakyx\LaravelDynamicEncryption\Tests\Feature\PrefixedTestModel')
             ->assertExitCode(0);
 
@@ -82,7 +82,7 @@ class AddEncryptionPrefixTest extends Orchestra
             'updated_at' => now(),
         ]);
 
-        $this->artisan('encrypt:add-prefix', ['--model' => [PrefixedTestModel::class]])
+        $this->artisan('dynamic-encrypter:add-prefix', ['--model' => [PrefixedTestModel::class]])
             ->expectsOutputToContain('Updated 0 records')
             ->assertExitCode(0);
 
@@ -98,7 +98,7 @@ class AddEncryptionPrefixTest extends Orchestra
             'updated_at' => now(),
         ]);
 
-        $this->artisan('encrypt:add-prefix', ['--model' => [PrefixedTestModel::class]])
+        $this->artisan('dynamic-encrypter:add-prefix', ['--model' => [PrefixedTestModel::class]])
             ->expectsOutputToContain('Updated 0 records')
             ->assertExitCode(0);
 
@@ -115,7 +115,7 @@ class AddEncryptionPrefixTest extends Orchestra
         ]);
 
         // Filter: nur ab 2024-12-01
-        $this->artisan('encrypt:add-prefix', [
+        $this->artisan('dynamic-encrypter:add-prefix', [
             '--model' => [PrefixedTestModel::class],
             '--from' => '2024-12-01 00:00:00',
         ])->expectsOutputToContain('Updated 1 records');
@@ -134,7 +134,7 @@ class AddEncryptionPrefixTest extends Orchestra
             'updated_at' => now(),
         ]);
 
-        $this->artisan('encrypt:add-prefix', [
+        $this->artisan('dynamic-encrypter:add-prefix', [
             '--model' => [PrefixedTestModel::class],
             '--dry-run' => true,
         ])->expectsOutputToContain('Updated 1 records for Sneakyx\LaravelDynamicEncryption\Tests\Feature\PrefixedTestModel (dry run)')
@@ -152,7 +152,7 @@ class AddEncryptionPrefixTest extends Orchestra
             'updated_at' => now(),
         ]);
 
-        $this->artisan('encrypt:add-prefix', ['--model' => [PrefixedTestModel::class]])
+        $this->artisan('dynamic-encrypter:add-prefix', ['--model' => [PrefixedTestModel::class]])
             ->assertExitCode(0);
 
         $record = DB::table('prefixed_test_models')->first();
@@ -168,7 +168,6 @@ class PrefixedTestModel extends \Illuminate\Database\Eloquent\Model
 
     protected $casts = [
         'secret_cast' => EncryptedNullableCast::class,
+        'secret_trait' => EncryptedNullableCast::class,
     ];
-
-    protected array $encryptable = ['secret_trait'];
 }

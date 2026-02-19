@@ -58,7 +58,7 @@ class EncryptFieldsTest extends Orchestra
             'updated_at' => now(),
         ]);
 
-        $this->artisan('encrypt:encrypt', ['--model' => [EncryptModel::class]])
+        $this->artisan('dynamic-encrypter:encrypt', ['--model' => [EncryptModel::class]])
             ->expectsOutputToContain('Encrypted 1 records')
             ->assertExitCode(0);
 
@@ -80,7 +80,7 @@ class EncryptFieldsTest extends Orchestra
             'updated_at' => now(),
         ]);
 
-        $this->artisan('encrypt:encrypt', [
+        $this->artisan('dynamic-encrypter:encrypt', [
             '--model' => [EncryptModel::class],
             '--dry-run' => true,
         ])->expectsOutputToContain('Encrypted 1 records for Sneakyx\LaravelDynamicEncryption\Tests\Feature\EncryptModel (dry run)')
@@ -100,7 +100,7 @@ class EncryptFieldsTest extends Orchestra
             'updated_at' => now(),
         ]);
 
-        $this->artisan('encrypt:encrypt', [
+        $this->artisan('dynamic-encrypter:encrypt', [
             '--model' => [EncryptModel::class],
             '--field' => ['secret_cast'],
         ])->assertExitCode(0);
@@ -119,7 +119,6 @@ class EncryptModel extends \Illuminate\Database\Eloquent\Model
 
     protected $casts = [
         'secret_cast' => EncryptedNullableCast::class,
+        'secret_trait' => EncryptedNullableCast::class,
     ];
-
-    protected array $encryptable = ['secret_trait'];
 }

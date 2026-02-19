@@ -3,23 +3,28 @@
 This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
-### Added
-- (none)
 
+## [0.3.1] - 2026-02-19
 ### Changed
-- (none)
-
-### Fixed
-- (none)
+- Refactored `DynamicEncryptable` trait to use only Cast-based field detection
+- `bootDynamicEncryptable()` now uses `getEncryptableAttributes()` internally instead of `$encryptable` property
 
 ### Deprecated
-- (none)
+- The `$encryptable` array property is now deprecated. Use Casts with `EncryptedNullableCast::class` instead.
+- Models using `$encryptable` will trigger a deprecation warning in logs.
+- Migration guide added to README.md
 
-### Removed
-- (none)
 
-### Security
-- (none)
+## [0.3.0] - 2026-02-19
+### Changed
+- [BREAKING] Renamed all artisan commands from `encrypt:*` to `dynamic-encrypter:*` for better clarity and consistency
+  - `encrypt:rotate` → `dynamic-encrypter:rotate`
+  - `encrypt:encrypt` → `dynamic-encrypter:encrypt`
+  - `encrypt:decrypt` → `dynamic-encrypter:decrypt`
+  - `encrypt:add-prefix` → `dynamic-encrypter:add-prefix`
+### Fixed
+- rotate keys depended on trait and cast, no extra array necessary
+
 ## [0.2.5] - 2026-02-17
 ### Fixed
 - Pinting
@@ -94,6 +99,8 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 - Configuration file `config/dynamic-encryption.php` and auto-discovery via service provider.
 - Tests using `orchestra/testbench` and example configuration.
 
-[Unreleased]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.2.5...v0.3.0
+[0.2.5]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.1.2...v0.2.5
 [0.1.2]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.1.0...v0.1.2
 [0.1.0]: https://github.com/sneakyx/laravel-dynamic-encryption/releases/tag/v0.1.0

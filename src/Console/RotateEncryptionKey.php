@@ -12,7 +12,7 @@ use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
 class RotateEncryptionKey extends Command
 {
-    protected $signature = 'encrypt:rotate {--model=* : Specific FQCN models to rotate} {--all : Rotate for all models using Encryptable} {--dry-run : Dry run without changing data}';
+    protected $signature = 'dynamic-encrypter:rotate {--model=* : Specific FQCN models to rotate} {--all : Rotate for all models using Encryptable} {--dry-run : Dry run without changing data}';
 
     protected $description = 'Rotate the dynamic encryption key and re-encrypt models.';
 
@@ -165,16 +165,23 @@ class RotateEncryptionKey extends Command
     {
         $fields = [];
 
+        // Prefer getEncryptableAttributes() if available
         if (method_exists($model, 'getEncryptableAttributes')) {
             $fields = array_merge($fields, $model->getEncryptableAttributes());
-        } elseif (isset($model->encryptable)) {
-            $fields = array_merge($fields, $model->encryptable);
         }
 
+        // Also scan casts directly (redundant but safe)
         foreach ($model->getCasts() as $field => $cast) {
-            if ($cast === EncryptedNullableCast::class || (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
+            if ($cast === EncryptedNullableCast::class ||
+                (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
                 $fields[] = $field;
             }
+        }
+
+        // Legacy support: check for deprecated $encryptable property
+        if (property_exists($model, 'encryptable') && isset($model->encryptable)) {
+            $this->warn('Model '.get_class($model).' uses deprecated $encryptable property. Please migrate to Casts.');
+            $fields = array_merge($fields, $model->encryptable);
         }
 
         return array_unique($fields);

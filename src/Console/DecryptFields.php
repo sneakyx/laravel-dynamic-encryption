@@ -11,7 +11,7 @@ use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
 class DecryptFields extends Command
 {
-    protected $signature = 'encrypt:decrypt
+    protected $signature = 'dynamic-encrypter:decrypt
                             {--model=* : Specific FQCN models to process}
                             {--field=* : Specific fields to decrypt (if model is specified)}
                             {--all : Process all models using encryption}
@@ -153,16 +153,23 @@ class DecryptFields extends Command
     {
         $fields = [];
 
+        // Prefer getEncryptableAttributes() if available
         if (method_exists($model, 'getEncryptableAttributes')) {
             $fields = array_merge($fields, $model->getEncryptableAttributes());
-        } elseif (isset($model->encryptable)) {
-            $fields = array_merge($fields, $model->encryptable);
         }
 
+        // Also scan casts directly (redundant but safe)
         foreach ($model->getCasts() as $field => $cast) {
-            if ($cast === EncryptedNullableCast::class || (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
+            if ($cast === EncryptedNullableCast::class ||
+                (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
                 $fields[] = $field;
             }
+        }
+
+        // Legacy support: check for deprecated $encryptable property
+        if (property_exists($model, 'encryptable') && isset($model->encryptable)) {
+            $this->warn('Model '.get_class($model).' uses deprecated $encryptable property. Please migrate to Casts.');
+            $fields = array_merge($fields, $model->encryptable);
         }
 
         return array_unique($fields);

@@ -79,21 +79,38 @@ $payload = Crypt::encryptString('secret');
 $plain   = Crypt::decryptString($payload);
 ```
 
-### DynamicEncryptable Trait
-Add the trait to your models and define an `$encryptable` array with fields to encrypt:
+### Usage
+
+Add the trait to your models and define encrypted fields via Casts:
+
 ```php
-use Illuminate\Database\Eloquent\Model;
 use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
+use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 
 class Secret extends Model
 {
     use DynamicEncryptable;
 
-    protected array \$encryptable = ['token', 'note'];
+    protected function casts(): array
+    {
+        return [
+            'token' => EncryptedNullableCast::class,
+            'note' => EncryptedNullableCast::class,
+        ];
+    }
 }
 ```
-- On save: Fields are automatically encrypted using the current dynamic encrypter (unless the missing-bundle policy says otherwise).
-- On retrieved/post-save: Values are set back to plaintext in the model instance for convenient usage.
+
+#### Legacy Approach (Deprecated)
+
+⚠️ **The `$encryptable` array is deprecated and will be removed in a future version.**
+
+If you're still using:
+```php
+protected array $encryptable = ['token', 'note'];
+```
+
+Please migrate to the Cast-based approach above. The trait will log deprecation warnings.
 
 ### Cast-based "Locked" Flow
 Instead of using a cryptographic fallback (e.g., `APP_KEY`), 
@@ -157,7 +174,7 @@ Without a prefix, it's difficult to know if a string in the database is already 
 If you have data that was encrypted with an older version of this package (without a prefix), you can use the following command to add the prefix to existing ciphertexts:
 
 ```bash
-php artisan encrypt:add-prefix --all
+php artisan dynamic-encrypter:add-prefix --all
 ```
 
 Options:
@@ -179,9 +196,9 @@ But be careful, there is a theoretical possibility that unencrypted Data is misi
 Use this if you need to permanently decrypt encrypted values in your database for specific models/fields:
 
 ```bash
-php artisan encrypt:decrypt --model=App\\Models\\Secret --field=iban --field=note
+php artisan dynamic-encrypter:decrypt --model=App\\Models\\Secret --field=iban --field=note
 # or everything
-php artisan encrypt:decrypt --all
+php artisan dynamic-encrypter:decrypt --all
 ```
 
 - Decrypts values that are recognized as encrypted (with the configured prefix) and writes back the plaintext.
@@ -191,9 +208,9 @@ php artisan encrypt:decrypt --all
 Use this when you have legacy plaintext in encryptable fields and want to encrypt them in one go:
 
 ```bash
-php artisan encrypt:encrypt --model=App\\Models\\Secret --field=iban
+php artisan dynamic-encrypter:encrypt --model=App\\Models\\Secret --field=iban
 # or everything
-php artisan encrypt:encrypt --all
+php artisan dynamic-encrypter:encrypt --all
 ```
 
 - Encrypts values that do not start with the configured prefix and are not already legacy-structured ciphertexts.
@@ -203,7 +220,7 @@ php artisan encrypt:encrypt --all
 ## Key Rotation
 Re-encrypt existing data from an old key/password to a new one:
 ```bash
-php artisan encrypt:rotate --model=App\\Models\\Secret
+php artisan dynamic-encrypter:rotate --model=App\\Models\\Secret
 ```
 Options:
 - `--model=FQCN` Can be repeated.
