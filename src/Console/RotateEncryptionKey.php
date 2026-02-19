@@ -76,44 +76,55 @@ class RotateEncryptionKey extends Command
                 continue;
             }
 
-            $modelInstance->newQuery()->select(['id'])->orderBy('id')->chunk($chunk, function ($items) use ($fqcn, $encryptable, $oldEncrypter, $newEncrypter, $dryRun) {
+            $modelInstance->newQuery()->select(['id'])->orderBy('id')->chunk($chunk, function ($items) use ($fqcn, $encryptable, $oldEncrypter, $newEncrypter, $modelInstance) {
                 foreach ($items as $item) {
                     // Reload full row
                     $row = $fqcn::query()->find($item->id);
                     $dirty = false;
                     foreach ($encryptable as $field) {
-                        $val = $row->getAttribute($field);
-                        if (is_null($val)) {
+                        // WICHTIG: getRawOriginal() verwenden, um Cast zu umgehen!
+                        $val = $row->getRawOriginal($field);
+                        if (is_null($val) || $val === '') {
                             continue;
                         }
 
                         $prefix = config('dynamic-encryption.prefix', 'dynenc:v1:');
-                        $ciphertext = $val;
-                        $hasPrefix = str_starts_with($val, $prefix);
 
-                        if ($hasPrefix) {
-                            $ciphertext = substr($val, strlen($prefix));
+                        // Skip if value doesn't have prefix and doesn't look like encrypted data
+                        $hasPrefix = str_starts_with($val, $prefix);
+                        if (! $hasPrefix) {
+                            // Check if it looks like legacy encrypted data (Laravel's encrypted format starts with eyJ = base64 JSON)
+                            if (! str_starts_with($val, 'eyJ')) {
+                                $this->warn("Failed to decrypt {$field} for {$row->getKey()}: This is a legacy unencrypted value.");
+
+                                continue;
+                            } else {
+                                $this->warn("Failed to decrypt {$field} for {$row->getKey()}: This seems to be encrypted, but the correct prefix is missing.");
+
+                                continue;
+                            }
                         }
+
+                        $ciphertext = $val;
+                        $ciphertext = substr($val, strlen($prefix));
 
                         try {
                             $decrypted = $oldEncrypter->decryptString($ciphertext);
                         } catch (\Throwable $e) {
-                            // cannot decrypt with the old key, skip this field
+                            $this->warn("Failed to decrypt {$field} for {$row->getKey()}: ".$e->getMessage());
                             continue;
                         }
 
                         $reencrypted = $newEncrypter->encryptString($decrypted);
-                        if ($hasPrefix) {
-                            $reencrypted = $prefix.$reencrypted;
-                        }
+                        $reencrypted = $prefix.$reencrypted;
 
                         if ($reencrypted !== $val) {
-                            $row->setAttribute($field, $reencrypted);
+                            \DB::table($modelInstance->getTable())
+                                ->where($row->getKeyName(), $row->getKey())
+                                ->update([$field => $reencrypted]);
                             $dirty = true;
+                            $this->info("  Re-encrypted {$row->getKey()}");
                         }
-                    }
-                    if ($dirty && ! $dryRun) {
-                        $row->save();
                     }
                 }
             });

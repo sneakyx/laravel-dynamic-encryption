@@ -3,6 +3,7 @@
 namespace Sneakyx\LaravelDynamicEncryption\Traits;
 
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 
@@ -18,6 +19,12 @@ trait DynamicEncryptable
             $encryptable = $model->getEncryptableAttributes();
             foreach ($encryptable as $field) {
                 $value = $model->getAttribute($field);
+
+                // Skip if already a LockedEncryptedValue from the cast
+                if ($value instanceof \Sneakyx\LaravelDynamicEncryption\Values\LockedEncryptedValue) {
+                    continue;
+                }
+
                 if (! is_null($value)) {
                     $model->setAttribute($field, static::decryptSilently($value));
                 }
@@ -83,7 +90,7 @@ trait DynamicEncryptable
         $class = get_class($model);
 
         if (! isset($warned[$class]) && property_exists($model, 'encryptable')) {
-            \Illuminate\Support\Facades\Log::warning("Model {$class} uses deprecated \$encryptable property. Please migrate to Casts with EncryptedNullableCast::class");
+            Log::warning("Model {$class} uses deprecated \$encryptable property. Please migrate to Casts with EncryptedNullableCast::class");
             $warned[$class] = true;
         }
     }
