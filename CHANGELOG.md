@@ -4,6 +4,18 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-20
+### Changed
+- **Breaking:** Removed `DynamicEncryptable` trait. Use `EncryptedNullableCast` in `$casts` instead.
+- The cast now handles legacy encrypted values (without prefix) automatically.
+- Updated `AddEncryptionPrefix` command to work without the trait.
+
+### Deprecated
+- The `$encryptable` property is deprecated. Migrate to casts.
+
+### Fixed
+- Prevent double-encryption when migrating legacy data.
+
 ## [0.3.1] - 2026-02-19
 ### Changed
 - Refactored `DynamicEncryptable` trait to use only Cast-based field detection

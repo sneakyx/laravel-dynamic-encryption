@@ -1,6 +1,6 @@
 {
     "name": "sneakyx/laravel-dynamic-encryption",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "description": "Laravel package that replaces the default encrypter with a dynamic key loaded from cache or database.",
     "type": "library",
     "license": "MIT",

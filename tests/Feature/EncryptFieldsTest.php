@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 use Sneakyx\LaravelDynamicEncryption\Providers\DynamicEncryptionServiceProvider;
-use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptionTestLoader;
 
 class EncryptFieldsTest extends Orchestra
@@ -113,8 +112,6 @@ class EncryptFieldsTest extends Orchestra
 
 class EncryptModel extends \Illuminate\Database\Eloquent\Model
 {
-    use DynamicEncryptable;
-
     protected $table = 'encrypt_models';
 
     protected $casts = [

@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 use Sneakyx\LaravelDynamicEncryption\Services\StorageManager;
-use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
 class RotateEncryptionKey extends Command
 {
@@ -112,6 +111,7 @@ class RotateEncryptionKey extends Command
                             $decrypted = $oldEncrypter->decryptString($ciphertext);
                         } catch (\Throwable $e) {
                             $this->warn("Failed to decrypt {$field} for {$row->getKey()}: ".$e->getMessage());
+
                             continue;
                         }
 
@@ -159,10 +159,6 @@ class RotateEncryptionKey extends Command
 
     protected function hasEncryption(Model $model): bool
     {
-        if (in_array(DynamicEncryptable::class, class_uses_recursive($model))) {
-            return true;
-        }
-
         foreach ($model->getCasts() as $cast) {
             if ($cast === EncryptedNullableCast::class || (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
                 return true;

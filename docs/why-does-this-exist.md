@@ -16,7 +16,7 @@ This package was created to solve practical problems in Laravel encryption while
 
 3) Minimal code changes for applications
 - Works with Laravel’s native `Crypt`/`Encrypter`.
-- Provides a trait to transparently encrypt/decrypt chosen model attributes without writing accessors/mutators.
+- Provides a cast to transparently encrypt/decrypt chosen model attributes without writing accessors/mutators.
 
 ### Use Cases
 - Environments wanting key rotation without downtime.
@@ -44,6 +44,6 @@ This package was created to solve practical problems in Laravel encryption while
 - No key or password is ever logged.
 
 4) Rotation without downtime
-- Provide both `old_password` and `password` in the bundle; run `php artisan encrypt:rotate ...` to re-encrypt fields in batches.
+- Provide both `old_password` and `password` in the bundle; run `php artisan dynamic-encrypter:rotate ...` to re-encrypt fields in batches.
 
 This approach keeps secrets where they belong (password in cache/secret store, salt/KDF in env), avoids persisting raw keys, and remains compatible with Laravel’s native encryption APIs.

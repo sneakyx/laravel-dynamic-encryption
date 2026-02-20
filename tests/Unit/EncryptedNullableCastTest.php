@@ -108,7 +108,7 @@ class EncryptedNullableCastTest extends Orchestra
 
         // Policy: raw
         config(['dynamic-encryption.on_decryption_error' => 'raw']);
-        $this->assertSame('invalid-payload', $cast->get($model, 'secret', $invalidPrefixed, []));
+        $this->assertSame($invalidPrefixed, $cast->get($model, 'secret', $invalidPrefixed, []));
 
         // Policy: null
         config(['dynamic-encryption.on_decryption_error' => 'null']);

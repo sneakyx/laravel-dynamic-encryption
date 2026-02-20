@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
-use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
 class DecryptFields extends Command
 {
@@ -136,10 +135,6 @@ class DecryptFields extends Command
 
     protected function hasEncryption(Model $model): bool
     {
-        if (in_array(DynamicEncryptable::class, class_uses_recursive($model))) {
-            return true;
-        }
-
         foreach ($model->getCasts() as $cast) {
             if ($cast === EncryptedNullableCast::class || (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
                 return true;
