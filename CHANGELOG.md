@@ -4,6 +4,25 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-20
+### Changed
+- **Breaking:** Renamed command `dynamic-encrypter:add-prefix` to `dynamic-encrypter:migrate-legacy`.
+- The command no longer just adds a prefix. It now fully re-encrypts legacy values: decrypts with candidate keys, then re-encrypts with the current encrypter and adds the versioned prefix.
+- By default, the command tries multiple decryption strategies automatically:
+  - Current KDF password + current salt
+  - Current KDF password + empty salt (for environments that had no `DYNAMIC_ENCRYPTION_SALT` configured)
+  - Laravel `APP_KEY`
+  - Old password from cache (if available)
+- Individual strategies can be skipped with `--skip-app-key` and `--skip-no-salt`.
+
+### Added
+- New `--debug-first` flag: stops at the first failed record and prints detailed diagnostic info (payload structure, all tried encrypters with their error messages).
+- New `--old-password`, `--old-salt`, `--old-kdf-iters` flags for explicitly providing legacy KDF parameters.
+- New `--skip-app-key` and `--skip-no-salt` flags to disable specific fallback strategies.
+
+### Removed
+- The old `dynamic-encrypter:add-prefix` command (replaced by `migrate-legacy`).
+
 ## [0.4.0] - 2026-02-20
 ### Changed
 - **Breaking:** Removed `DynamicEncryptable` trait. Use `EncryptedNullableCast` in `$casts` instead.
@@ -111,7 +130,9 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 - Configuration file `config/dynamic-encryption.php` and auto-discovery via service provider.
 - Tests using `orchestra/testbench` and example configuration.
 
-[Unreleased]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.1.2...v0.2.5
 [0.1.2]: https://github.com/sneakyx/laravel-dynamic-encryption/compare/v0.1.0...v0.1.2

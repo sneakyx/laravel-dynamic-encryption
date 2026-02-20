@@ -179,24 +179,37 @@ Starting with version 0.2.0, encrypted values are stored with a versioned prefix
 Without a prefix, it's difficult to know if a string in the database is already encrypted or if it's still plaintext. Attempting to decrypt plaintext usually results in a decryption error. With the prefix, the `EncryptedNullableCast` can safely return the raw value if no prefix is found, preventing errors during migration or partial rollouts.
 
 ### Migration Command
-If you have data that was encrypted with an older version of this package (without a prefix), you can use the following command to add the prefix to existing ciphertexts:
+If you have data that was encrypted with an older version of this package (without a prefix) or using different encryption parameters, you can use the `migrate-legacy` command to re-encrypt your data with the current settings:
 
 ```bash
-php artisan dynamic-encrypter:add-prefix --all
+php artisan dynamic-encrypter:migrate-legacy --all --dry-run
+php artisan dynamic-encrypter:migrate-legacy --all
 ```
+
+The command decrypts legacy values (without prefix, encrypted with an old key/salt) and re-encrypts them using the current encrypter and adds the versioned prefix.
+
+By default, it automatically attempts multiple decryption strategies:
+- Current KDF password + current salt
+- Current KDF password + empty salt (for environments that previously had no `DYNAMIC_ENCRYPTION_SALT`)
+- Laravel `APP_KEY`
+- Old password from cache (if available)
 
 Options:
 - `--model=FQCN`: Process specific models (can be repeated).
 - `--all`: Process all models using encryption.
 - `--from="2025-01-01 00:00:00"`: Only process records updated after this date.
 - `--to="2025-12-31 23:59:59"`: Only process records updated before this date.
+- `--old-password=PASSWORD`: Explicitly provide the legacy password.
+- `--old-salt=SALT`: Explicitly provide the legacy salt.
+- `--old-kdf-iters=ITERS`: Explicitly provide legacy KDF iterations.
+- `--skip-app-key`: Do not attempt decryption with the Laravel `APP_KEY`.
+- `--skip-no-salt`: Do not attempt decryption with an empty salt.
 - `--dry-run`: Show what would be updated without changing the database.
+- `--debug-first`: Useful if records cannot be decrypted. It stops at the first failed record and prints detailed diagnostic information (payload structure, tried encrypters, and error messages).
 
-The command only adds the prefix if the value:
-1.  Does not already have the prefix.
-2.  Starts with `eyJpdiI` (typical Laravel Base64-encoded encryption payload).
-3.  Is longer than 20 characters.
-4.  Contains a valid JSON structure with `iv`, `value`, and `mac` fields.
+The command only processes values that:
+1.  Do not already have the current prefix.
+2.  Appear to be encrypted (e.g., valid JSON structure with `iv`, `value`, and `mac`).
 
 But be careful, there is a theoretical possibility that unencrypted Data is misinterpreted.
 
