@@ -2,13 +2,13 @@
 
 namespace Sneakyx\LaravelDynamicEncryption\Tests\Feature;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 use Sneakyx\LaravelDynamicEncryption\Providers\DynamicEncryptionServiceProvider;
-use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptionTestLoader;
 
 class AddEncryptionPrefixTest extends Orchestra
@@ -143,27 +143,28 @@ class AddEncryptionPrefixTest extends Orchestra
         $this->assertSame($encrypted, DB::table('prefixed_test_models')->first()->secret_cast);
     }
 
-    public function test_it_handles_trait_fields(): void
+    public function test_it_handles_legacy_migration_via_cast(): void
     {
-        $encrypted = app('encrypter')->encryptString('trait-data');
+        $plain = 'legacy-data';
+        $encryptedWithoutPrefix = app('encrypter')->encryptString($plain);
 
-        DB::table('prefixed_test_models')->insert([
-            'secret_trait' => $encrypted,
-            'updated_at' => now(),
+        $model = new PrefixedTestModel;
+        // simulate a value, that is encrypted in database (without prefix)
+        $model->setRawAttributes([
+            'secret_cast' => $encryptedWithoutPrefix,
         ]);
 
-        $this->artisan('dynamic-encrypter:add-prefix', ['--model' => [PrefixedTestModel::class]])
-            ->assertExitCode(0);
+        // we set the value again, the cast should see that it is encrypted and add the prefix
+        $model->secret_cast = $encryptedWithoutPrefix;
 
-        $record = DB::table('prefixed_test_models')->first();
-        $this->assertStringStartsWith('dynenc:v1:', $record->secret_trait);
+        $this->assertStringStartsWith('dynenc:v1:', $model->getAttributes()['secret_cast']);
+        $this->assertSame('dynenc:v1:'.$encryptedWithoutPrefix, $model->getAttributes()['secret_cast']);
+        $this->assertSame($plain, $model->secret_cast);
     }
 }
 
-class PrefixedTestModel extends \Illuminate\Database\Eloquent\Model
+class PrefixedTestModel extends Model
 {
-    use DynamicEncryptable;
-
     protected $table = 'prefixed_test_models';
 
     protected $casts = [

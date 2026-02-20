@@ -81,33 +81,41 @@ $plain   = Crypt::decryptString($payload);
 
 ### Usage
 
-Add the trait to your models and define encrypted fields via Casts:
+Use the `EncryptedNullableCast` in your model's `$casts` array:
 
 ```php
-use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 
-class Secret extends Model
+class User extends Model
 {
-    use DynamicEncryptable;
-
     protected function casts(): array
     {
         return [
-            'token' => EncryptedNullableCast::class,
-            'note' => EncryptedNullableCast::class,
+            'secret_field' => EncryptedNullableCast::class,
         ];
     }
 }
 ```
 
-#### Legacy Approach (Deprecated)
+## Migration from v0.3.x
 
-⚠️ **The `$encryptable` array is deprecated and will be removed in a future version.**
+Replace the `DynamicEncryptable` trait and `$encryptable` property with casts:
 
-If you're still using:
 ```php
-protected array $encryptable = ['token', 'note'];
+// OLD (deprecated)
+use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
+class User extends Model {
+    use DynamicEncryptable;
+    protected array $encryptable = ['secret_field'];
+}
+
+// NEW
+use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
+class User extends Model {
+    protected function casts(): array {
+        return ['secret_field' => EncryptedNullableCast::class];
+    }
+}
 ```
 
 Please migrate to the Cast-based approach above. The trait will log deprecation warnings.
@@ -179,7 +187,7 @@ php artisan dynamic-encrypter:add-prefix --all
 
 Options:
 - `--model=FQCN`: Process specific models (can be repeated).
-- `--all`: Process all models using the `DynamicEncryptable` trait or `EncryptedNullableCast`.
+- `--all`: Process all models using encryption.
 - `--from="2025-01-01 00:00:00"`: Only process records updated after this date.
 - `--to="2025-12-31 23:59:59"`: Only process records updated before this date.
 - `--dry-run`: Show what would be updated without changing the database.
@@ -224,7 +232,7 @@ php artisan dynamic-encrypter:rotate --model=App\\Models\\Secret
 ```
 Options:
 - `--model=FQCN` Can be repeated.
-- `--all` Rotate for all models using the DynamicEncryptable trait (be careful on large datasets).
+- `--all` Rotate for all models using encryption (be careful on large datasets).
 - `--dry-run` Do not write changes.
 
 How it works:

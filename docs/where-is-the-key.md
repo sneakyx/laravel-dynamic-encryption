@@ -65,7 +65,7 @@ Cache::forever(config('dynamic-encryption.array'), $bundle);
 ```
 Then run:
 ```bash
-php artisan encrypt:rotate --model=App\Models\YourModel
+php artisan dynamic-encrypter:rotate --model=App\Models\YourModel
 ```
 
 ---

@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
-use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
 class AddEncryptionPrefix extends Command
 {
@@ -136,14 +135,9 @@ class AddEncryptionPrefix extends Command
 
     protected function hasEncryption(Model $model): bool
     {
-        // Check Trait
-        if (in_array(DynamicEncryptable::class, class_uses_recursive($model))) {
-            return true;
-        }
-
-        // Check Casts
         foreach ($model->getCasts() as $cast) {
-            if ($cast === EncryptedNullableCast::class || (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
+            if ($cast === EncryptedNullableCast::class ||
+                (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
                 return true;
             }
         }
@@ -154,13 +148,6 @@ class AddEncryptionPrefix extends Command
     protected function getEncryptedFields(Model $model): array
     {
         $fields = [];
-
-        // Prefer getEncryptableAttributes() if available
-        if (method_exists($model, 'getEncryptableAttributes')) {
-            $fields = array_merge($fields, $model->getEncryptableAttributes());
-        }
-
-        // Also scan casts directly (redundant but safe)
         foreach ($model->getCasts() as $field => $cast) {
             if ($cast === EncryptedNullableCast::class ||
                 (is_string($cast) && class_exists($cast) && is_subclass_of($cast, EncryptedNullableCast::class))) {
@@ -168,7 +155,6 @@ class AddEncryptionPrefix extends Command
             }
         }
 
-        // Legacy support: check for deprecated $encryptable property
         if (property_exists($model, 'encryptable') && isset($model->encryptable)) {
             $this->warn('Model '.get_class($model).' uses deprecated $encryptable property. Please migrate to Casts.');
             $fields = array_merge($fields, $model->encryptable);

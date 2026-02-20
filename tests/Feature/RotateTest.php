@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Sneakyx\LaravelDynamicEncryption\Providers\DynamicEncryptionServiceProvider;
 use Sneakyx\LaravelDynamicEncryption\Services\StorageManager;
-use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 
 class RotateTest extends Orchestra
 {
@@ -92,10 +91,8 @@ class RotateTest extends Orchestra
 <?php
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
-use Sneakyx\LaravelDynamicEncryption\Traits\DynamicEncryptable;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 class AllSecret extends Model {
-    use DynamicEncryptable;
     protected $table = 'test_secrets';
     protected $fillable = ['name','token'];
     protected function casts(): array {
@@ -144,8 +141,6 @@ PHP
 
 class TestSecret extends \Illuminate\Database\Eloquent\Model
 {
-    use DynamicEncryptable;
-
     protected $table = 'test_secrets';
 
     protected $fillable = ['name', 'token'];
