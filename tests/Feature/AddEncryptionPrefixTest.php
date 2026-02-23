@@ -49,11 +49,11 @@ class AddEncryptionPrefixTest extends Orchestra
 
     public function test_it_adds_prefix_to_unprefixed_encrypted_data(): void
     {
-        // Erzeuge verschlüsselten Wert OHNE Präfix
+        // Create encrypted value WITHOUT prefix
         $plain = 'my-secret-data';
         $encryptedWithoutPrefix = app('encrypter')->encryptString($plain);
 
-        // Direkt in DB einfügen um Cast/Trait zu umgehen
+        // Insert directly into DB to bypass cast/trait
         DB::table('prefixed_test_models')->insert([
             'name' => 'Legacy Record',
             'secret_cast' => $encryptedWithoutPrefix,
@@ -68,7 +68,7 @@ class AddEncryptionPrefixTest extends Orchestra
         $this->assertStringStartsWith('dynenc:v1:', $record->secret_cast);
         $this->assertSame('dynenc:v1:'.$encryptedWithoutPrefix, $record->secret_cast);
 
-        // Über Eloquent prüfen ob es lesbar ist
+        // Verify readability via Eloquent
         $model = PrefixedTestModel::first();
         $this->assertSame($plain, $model->secret_cast);
     }
@@ -114,7 +114,7 @@ class AddEncryptionPrefixTest extends Orchestra
             ['secret_cast' => $encrypted, 'updated_at' => '2025-01-01 10:00:00'],
         ]);
 
-        // Filter: nur ab 2024-12-01
+        // Filter: only from 2024-12-01
         $this->artisan('dynamic-encrypter:migrate-legacy', [
             '--model' => [PrefixedTestModel::class],
             '--from' => '2024-12-01 00:00:00',
