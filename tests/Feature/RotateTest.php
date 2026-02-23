@@ -48,13 +48,12 @@ class RotateTest extends Orchestra
         $rawNew = random_bytes(32);
 
         $bundle = [
-            'password' => 'base64:'.base64_encode($rawNew),
-            'old_password' => 'base64:'.base64_encode($rawOld),
+            'password' => 'base64:'.base64_encode($rawOld),
         ];
         $this->app['cache']->store('array')->forever('dynamic_encryption_key', $bundle);
 
         // Create data with old key
-        $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['old_password']);
+        $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['password']);
         $plain = 'alpha';
         $cipher = 'dynenc:v1:'.$oldEncrypter->encryptString($plain);
 
@@ -65,8 +64,12 @@ class RotateTest extends Orchestra
             'updated_at' => now(),
         ]);
 
-        // Run command with --model
-        $this->artisan('dynamic-encrypter:rotate', ['--model' => [TestSecret::class]])->assertExitCode(0);
+        // Run command with --model (interactive answers)
+        $this->artisan('dynamic-encrypter:rotate', ['--model' => [TestSecret::class]])
+            ->expectsQuestion('Old password (Enter for cache value)', '')
+            ->expectsQuestion('New password', 'base64:'.base64_encode($rawNew))
+            ->expectsConfirmation('Start re-encryption now?', 'yes')
+            ->assertExitCode(0);
 
         // Ensure ciphertext changed but plaintext still decrypts to same
         $after = TestSecret::query()->first();
@@ -110,13 +113,12 @@ PHP
         $rawNew = random_bytes(32);
 
         $bundle = [
-            'password' => 'base64:'.base64_encode($rawNew),
-            'old_password' => 'base64:'.base64_encode($rawOld),
+            'password' => 'base64:'.base64_encode($rawOld),
         ];
         $this->app['cache']->store('array')->forever('dynamic_encryption_key', $bundle);
 
         // Seed with old key
-        $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['old_password']);
+        $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['password']);
         $plain = 'gamma';
         $cipher = 'dynenc:v1:'.$oldEncrypter->encryptString($plain);
 
@@ -127,8 +129,11 @@ PHP
             'updated_at' => now(),
         ]);
 
-        // Run with --all
+        // Run with --all (interactive answers)
         $this->artisan('dynamic-encrypter:rotate', ['--all' => true])
+            ->expectsQuestion('Old password (Enter for cache value)', '')
+            ->expectsQuestion('New password', 'base64:'.base64_encode($rawNew))
+            ->expectsConfirmation('Start re-encryption now?', 'yes')
             ->expectsOutputToContain('Re-encrypting model: App\Models\AllSecret')
             ->assertExitCode(0);
 
@@ -136,6 +141,102 @@ PHP
 
         // Cleanup created file
         @unlink($modelPath);
+    }
+
+    public function test_aborts_when_cache_password_missing(): void
+    {
+        // Ensure cache bundle is missing
+        $this->app['cache']->store('array')->forget('dynamic_encryption_key');
+
+        $this->artisan('dynamic-encrypter:rotate', ['--model' => [TestSecret::class]])
+            ->expectsOutputToContain('No password found in cache')
+            ->assertExitCode(\Illuminate\Console\Command::FAILURE);
+    }
+
+    public function test_aborts_on_confirmation_no_without_changes(): void
+    {
+        $sm = $this->app->make(StorageManager::class);
+        $rawOld = random_bytes(32);
+        $rawNew = random_bytes(32);
+
+        $bundle = [
+            'password' => 'base64:'.base64_encode($rawOld),
+        ];
+        $this->app['cache']->store('array')->forever('dynamic_encryption_key', $bundle);
+
+        // Seed one row encrypted with old key
+        $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['password']);
+        $plain = 'beta';
+        $cipher = 'dynenc:v1:'.$oldEncrypter->encryptString($plain);
+        DB::table('test_secrets')->insert([
+            'name' => 'B', 'token' => $cipher, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->artisan('dynamic-encrypter:rotate', ['--model' => [TestSecret::class]])
+            ->expectsQuestion('Old password (Enter for cache value)', '')
+            ->expectsQuestion('New password', 'base64:'.base64_encode($rawNew))
+            ->expectsConfirmation('Start re-encryption now?', 'no')
+            ->assertExitCode(0);
+
+        $row = DB::table('test_secrets')->first();
+        $this->assertSame($cipher, $row->token);
+    }
+
+    public function test_cache_updated_when_new_differs_and_hint_printed(): void
+    {
+        $sm = $this->app->make(StorageManager::class);
+        $rawOld = random_bytes(32);
+        $rawNew = random_bytes(32);
+
+        $bundle = [
+            'password' => 'base64:'.base64_encode($rawOld),
+        ];
+        $this->app['cache']->store('array')->forever('dynamic_encryption_key', $bundle);
+
+        // Seed with old
+        $oldEncrypter = $sm->makeEncrypterFromKeyString($bundle['password']);
+        $cipher = 'dynenc:v1:'.$oldEncrypter->encryptString('delta');
+        DB::table('test_secrets')->insert([
+            'name' => 'D', 'token' => $cipher, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $newString = 'base64:'.base64_encode($rawNew);
+        $this->artisan('dynamic-encrypter:rotate', ['--model' => [TestSecret::class]])
+            ->expectsQuestion('Old password (Enter for cache value)', '')
+            ->expectsQuestion('New password', $newString)
+            ->expectsConfirmation('Start re-encryption now?', 'yes')
+            ->expectsOutputToContain('Note: The new password has been updated in the cache')
+            ->assertExitCode(0);
+
+        $bundleAfter = $this->app['cache']->store('array')->get('dynamic_encryption_key');
+        $this->assertSame($newString, $bundleAfter['password'] ?? null);
+    }
+
+    public function test_dry_run_does_not_write(): void
+    {
+        $sm = $this->app->make(StorageManager::class);
+        $rawOld = random_bytes(32);
+        $rawNew = random_bytes(32);
+
+        $bundle = [
+            'password' => 'base64:'.base64_encode($rawOld),
+        ];
+        $this->app['cache']->store('array')->forever('dynamic_encryption_key', $bundle);
+
+        $cipher = 'dynenc:v1:'.$sm->makeEncrypterFromKeyString($bundle['password'])->encryptString('epsilon');
+        DB::table('test_secrets')->insert([
+            'name' => 'E', 'token' => $cipher, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->artisan('dynamic-encrypter:rotate', ['--model' => [TestSecret::class], '--dry-run' => true])
+            ->expectsQuestion('Old password (Enter for cache value)', '')
+            ->expectsQuestion('New password', 'base64:'.base64_encode($rawNew))
+            ->expectsConfirmation('Start re-encryption now?', 'yes')
+            ->expectsOutputToContain('Would re-encrypt')
+            ->assertExitCode(0);
+
+        $row = DB::table('test_secrets')->first();
+        $this->assertSame($cipher, $row->token);
     }
 }
 

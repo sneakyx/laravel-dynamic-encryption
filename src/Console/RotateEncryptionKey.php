@@ -5,7 +5,6 @@ namespace Sneakyx\LaravelDynamicEncryption\Console;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Log;
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
 use Sneakyx\LaravelDynamicEncryption\Services\StorageManager;
 
@@ -29,33 +28,42 @@ class RotateEncryptionKey extends Command
             $models = $this->findAllModelsWithEncryption();
         }
 
-        // get old key from storage
+        // Read old password from cache as default
         try {
-            $oldKeyString = $storage->getKeyString(true);
+            $cachedPassword = $storage->getKeyString();
         } catch (\Throwable $e) {
-            $this->error('Old key not found: '.$e->getMessage());
-
-            return Command::FAILURE;
-        }
-        $oldEncrypter = $storage->makeEncrypterFromKeyString($oldKeyString);
-
-        // get new key from storage
-        try {
-            $newKeyString = $storage->getKeyString(false);
-        } catch (\Throwable $e) {
-            $this->error('New key not found: '.$e->getMessage());
+            $this->error('No password found in cache. Please unlock the server first (put password in cache) and then try again.');
 
             return Command::FAILURE;
         }
 
-        if ($dryRun) {
-            $this->info('Dry run: would use existing old and new keys to re-encrypt data.');
-        } else {
-            $this->info('Using existing new dynamic key for rotation.');
-            Log::info('Dynamic encryption key rotated');
+        // Interactive query old/new (secret)
+        $this->line('Preparing rotation. Default: current cache password as "old password".');
+        $oldInput = $this->secret('Old password (Enter for cache value)');
+        $oldPassword = ($oldInput === null || $oldInput === '') ? $cachedPassword : $oldInput;
+
+        $newPassword = $this->secret('New password');
+        if ($newPassword === null || $newPassword === '') {
+            $this->error('New password must not be empty.');
+
+            return Command::FAILURE;
         }
 
-        $newEncrypter = $storage->makeEncrypterFromKeyString($newKeyString);
+        $oldEncrypter = $storage->makeEncrypterFromKeyString($oldPassword);
+        $newEncrypter = $storage->makeEncrypterFromKeyString($newPassword);
+
+        // Security confirmation
+        $countModels = count($models);
+        $this->info("Affected models: {$countModels}");
+        foreach ($models as $m) {
+            $this->line(" - {$m}");
+        }
+        $this->info('Dry-Run: '.($dryRun ? 'YES (NO changes will be written)' : 'NO (changes will be written)'));
+        if (! $this->confirm('Start re-encryption now?', false)) {
+            $this->warn('Aborted. No changes were made.');
+
+            return Command::SUCCESS;
+        }
 
         $chunk = (int) Config::get('dynamic-encryption.chunk', 200);
 
@@ -75,13 +83,12 @@ class RotateEncryptionKey extends Command
                 continue;
             }
 
-            $modelInstance->newQuery()->select(['id'])->orderBy('id')->chunk($chunk, function ($items) use ($fqcn, $encryptable, $oldEncrypter, $newEncrypter, $modelInstance) {
+            $modelInstance->newQuery()->select(['id'])->orderBy('id')->chunk($chunk, function ($items) use ($fqcn, $encryptable, $oldEncrypter, $newEncrypter, $modelInstance, $dryRun) {
                 foreach ($items as $item) {
                     // Reload full row
                     $row = $fqcn::query()->find($item->id);
-                    $dirty = false;
                     foreach ($encryptable as $field) {
-                        // WICHTIG: getRawOriginal() verwenden, um Cast zu umgehen!
+                        // IMPORTANT: getRawOriginal() because of cast!
                         $val = $row->getRawOriginal($field);
                         if (is_null($val) || $val === '') {
                             continue;
@@ -104,7 +111,6 @@ class RotateEncryptionKey extends Command
                             }
                         }
 
-                        $ciphertext = $val;
                         $ciphertext = substr($val, strlen($prefix));
 
                         try {
@@ -119,18 +125,31 @@ class RotateEncryptionKey extends Command
                         $reencrypted = $prefix.$reencrypted;
 
                         if ($reencrypted !== $val) {
-                            \DB::table($modelInstance->getTable())
-                                ->where($row->getKeyName(), $row->getKey())
-                                ->update([$field => $reencrypted]);
-                            $dirty = true;
-                            $this->info("  Re-encrypted {$row->getKey()}");
+                            if ($dryRun) {
+                                $this->info("  Would re-encrypt {$row->getKey()}");
+                            } else {
+                                \DB::table($modelInstance->getTable())
+                                    ->where($row->getKeyName(), $row->getKey())
+                                    ->update([$field => $reencrypted]);
+                                $this->info("  Re-encrypted {$row->getKey()}");
+                            }
                         }
                     }
                 }
             });
         }
 
-        $this->info('Rotation complete.');
+        if (! $dryRun && $newPassword !== $cachedPassword) {
+            // After successful rotation, store the new password in cache
+            try {
+                $storage->storeKey($newPassword);
+                $this->warn('Note: The new password has been updated in the cache. Please also update the external "cache source" (e.g., encrypted credential file/password manager/unlock process), otherwise the old password will be active again after a cache reset.');
+            } catch (\Throwable $e) {
+                $this->warn('Warning: New password could not be stored in cache: '.get_class($e));
+            }
+        }
+
+        $this->info('Rotation completed. Please check functionality afterwards (Decrypt/Encrypt test).');
 
         return Command::SUCCESS;
     }

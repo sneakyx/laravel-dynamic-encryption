@@ -32,7 +32,7 @@ This package was created to solve practical problems in Laravel encryption while
 
 ### Design Decisions (updated)
 1) Cache bundle + KDF-from-.env
-- A bundle array in cache (under `dynamic-encryption.array`) contains `password`/`old_password`.
+- A bundle array in cache (under `dynamic-encryption.array`) contains `password`.
 - If the value starts with `base64:`, it’s a ready-to-use raw key.
 - Otherwise, the value is treated as a password and turned into a key with the configured KDF (PBKDF2 or Argon2id) and salt from `.env`.
 
@@ -44,6 +44,6 @@ This package was created to solve practical problems in Laravel encryption while
 - No key or password is ever logged.
 
 4) Rotation without downtime
-- Provide both `old_password` and `password` in the bundle; run `php artisan dynamic-encrypter:rotate ...` to re-encrypt fields in batches.
+- Since v0.5.1, rotation is interactive: ensure the cache has `password`, then run `php artisan dynamic-encrypter:rotate ...` and follow the prompts (old/new password, confirmation). Data is re-encrypted in batches.
 
 This approach keeps secrets where they belong (password in cache/secret store, salt/KDF in env), avoids persisting raw keys, and remains compatible with Laravel’s native encryption APIs.

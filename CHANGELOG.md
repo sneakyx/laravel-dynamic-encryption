@@ -4,6 +4,20 @@ This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-02-23
+### Changed
+- Rotate command is now interactive: prompts for old/new password via secret() (default for "old" = cache password), shows a summary (models, dry-run) before write access, and requires explicit confirmation.
+- Dry-run performs no write access, but reports all planned changes.
+- After successful rotation, the new password is saved in the cache if it differs, and a clear instruction to update the external "cache source" is printed.
+- Removed Salt/Pepper rotation from the Rotate command.
+
+### Removed
+- Full removal of all hints/features related to `old_password` (code, config, documentation). Specifically removed: `DYNAMIC_ENCRYPTION_ARRAY_OLD_KEY` and JSON key `old_password` in examples.
+
+### Fixed
+- `EncryptedNullableCast`: Fixed validation for legacy ciphertexts (base64 decoding of the full payload).
+- `dynamic-encrypter:migrate-legacy`: Standardized output ("Updated X records for <Model> ...") and adjusted behavior: legacy values only receive the prefix (no re-encrypt), making it deterministic and safe for migration runs.
+
 ## [0.5.0] - 2026-02-20
 ### Changed
 - **Breaking:** Renamed command `dynamic-encrypter:add-prefix` to `dynamic-encrypter:migrate-legacy`.

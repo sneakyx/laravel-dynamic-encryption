@@ -2,9 +2,8 @@
 
 This package expects a single "bundle" (an array) in your cache under the cache key configured by `dynamic-encryption.array` (env: `DYNAMIC_ENCRYPTION_CACHE_KEY`).
 
-The bundle can contain:
+The bundle contains:
 - `password` (env: `DYNAMIC_ENCRYPTION_ARRAY_KEY`) → either a plain password OR a `base64:`-encoded, already-derived key.
-- `old_password` (env: `DYNAMIC_ENCRYPTION_ARRAY_OLD_KEY`) → optional, used during rotation.
 
 The actual raw key bytes are never stored. If a plain password is provided, the package derives the correct-length key using the configured KDF and the salt from `.env`.
 
@@ -21,8 +20,6 @@ php artisan tinker
 ```php
 $bundle = [
     config('dynamic-encryption.key') => 'your-password-here',  // typically 'password' => '...'
-    // Optionally keep an old password during rotation:
-    // config('dynamic-encryption.old_key') => 'old-password-here',
 ];
 
 // Persist the whole bundle under the array cache key
@@ -54,19 +51,15 @@ Cache::get(config('dynamic-encryption.array'));
 ```
 If the value starts with `base64:`, the package will decode and validate it against the required length, then use it directly.
 
-## 3) Rotation bundle
-During rotation, set both entries so the CLI can decrypt with old and re-encrypt with new:
-```php
-$bundle = [
-    config('dynamic-encryption.old_key') => 'old-password-or-base64:...',
-    config('dynamic-encryption.key')     => 'new-password-or-base64:...',
-];
-Cache::forever(config('dynamic-encryption.array'), $bundle);
-```
-Then run:
+## 3) Rotation (interactive)
+As of v0.5.1, rotation is handled interactively by the CLI. Ensure the cache contains the current `password`. Then run:
 ```bash
 php artisan dynamic-encrypter:rotate --model=App\Models\YourModel
 ```
+You will be prompted for:
+- Old password (defaults to the cached password; press Enter to use it)
+- New password (secret)
+The command will show a summary and ask for confirmation before writing.
 
 ---
 
@@ -76,7 +69,6 @@ php artisan dynamic-encrypter:rotate --model=App\Models\YourModel
 DYNAMIC_ENCRYPTION_CACHE_STORE=memcached
 DYNAMIC_ENCRYPTION_CACHE_KEY=dynamic_encryption_key
 DYNAMIC_ENCRYPTION_ARRAY_KEY=password
-DYNAMIC_ENCRYPTION_ARRAY_OLD_KEY=old_password
 
 # KDF + salt (for password mode)
 DYNAMIC_ENCRYPTION_KDF=pbkdf2    # or argon2id

@@ -31,10 +31,9 @@ Relevant `.env` variables (examples):
 # the bundle is read via your DEFAULT cache store. Ensure they match in practice.
 DYNAMIC_ENCRYPTION_CACHE_STORE=memcached
 
-# Cache key that holds the bundle (an array) with fields like "password" and "old_password"
+# Cache key that holds the bundle (an array) with the field "password"
 DYNAMIC_ENCRYPTION_CACHE_KEY=dynamic_encryption_key
 DYNAMIC_ENCRYPTION_ARRAY_KEY=password
-DYNAMIC_ENCRYPTION_ARRAY_OLD_KEY=old_password
 
 # KDF settings (password -> key). Salt/params come from .env
 DYNAMIC_ENCRYPTION_KDF=pbkdf2    # or: argon2id
@@ -239,7 +238,7 @@ php artisan dynamic-encrypter:encrypt --all
 - Supports `--model` (repeatable), `--field` (repeatable), `--all`, and `--dry-run`.
 
 ## Key Rotation
-Re-encrypt existing data from an old key/password to a new one:
+Re-encrypt existing data from an old password to a new one (interactive):
 ```bash
 php artisan dynamic-encrypter:rotate --model=App\\Models\\Secret
 ```
@@ -248,9 +247,13 @@ Options:
 - `--all` Rotate for all models using encryption (be careful on large datasets).
 - `--dry-run` Do not write changes.
 
-How it works:
-- The command expects your cache bundle to contain both entries: `old_password` and `password` (names configurable via env/config).
-- It decrypts each field with the old encrypter and re-encrypts with the new one, in chunks (`dynamic-encryption.chunk`).
+How it works (since v0.5.1):
+- The command reads the current password from the configured cache bundle (field `password`). If none is present, it aborts with a clear error (server must be unlocked first).
+- It prompts for the old password (default = cached password; press Enter to use it) and for the new password (secret input).
+- Before writing, it shows a short summary (affected models, dry-run status) and asks for explicit confirmation.
+- Then it decrypts each field with the old encrypter and re-encrypts with the new one, in chunks (`dynamic-encryption.chunk`).
+- In dry-run mode, no writes are performed.
+- After success, if the entered new password differs from the cached password, the cache is updated and a reminder is printed to also update the external source used for unlocking.
 
 ## Testing
 

@@ -4,7 +4,6 @@ return [
     'storage' => env('DYNAMIC_ENCRYPTION_CACHE_STORE', 'memcached'),
     'array' => env('DYNAMIC_ENCRYPTION_CACHE_KEY', 'dynamic_encryption_key'),
     'key' => env('DYNAMIC_ENCRYPTION_ARRAY_KEY', 'password'),
-    'old_key' => env('DYNAMIC_ENCRYPTION_ARRAY_OLD_KEY', 'old_password'),
 
     // KDF settings (source from .env)
     // Supported: 'pbkdf2' (default), 'argon2id'

@@ -93,7 +93,8 @@ final class EncryptedNullableCast implements CastsAttributes
         // If the value is already encrypted (legacy format: eyJpdiI6)
         if (str_starts_with($value, 'eyJpdiI6')) {
             // Validate the encrypted string structure
-            $decoded = json_decode(base64_decode(substr($value, 0, 50)), true);
+            $decodedJson = base64_decode((string) $value, true);
+            $decoded = $decodedJson !== false ? json_decode($decodedJson, true) : null;
             if (! is_array($decoded) || ! isset($decoded['iv'], $decoded['value'], $decoded['mac'])) {
                 throw ValidationException::withMessages([
                     $key => __('Invalid encrypted value. Expected valid ciphertext or plaintext.'),

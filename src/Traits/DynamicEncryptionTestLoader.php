@@ -9,8 +9,7 @@ trait DynamicEncryptionTestLoader
     protected static ?string $dynamicEncryptionTestKey = null;
 
     /**
-     * Initialisiert einmalig einen zufälligen Key und schreibt ihn
-     * bei jedem Testlauf in den konfigurierten Cache-Store/Key.
+     * Initializes a random key once and writes it
      */
     protected function initializeDynamicEncryptionKeyForTests(): void
     {

@@ -25,7 +25,7 @@ class AddEncryptionPrefix extends Command
                             {--dry-run : Dry run without changing data}
                             {--debug-first : Show debug info for the first failed record and stop}';
 
-    protected $description = 'Re-encrypt legacy values with the current encryption method and add prefix.';
+    protected $description = 'Re-encrypt legacy values with the current encryption method and add prefix (formerly migrate-legacy).';
 
     public function handle(): int
     {
@@ -98,7 +98,7 @@ class AddEncryptionPrefix extends Command
             $stopProcessing = false;
 
             $query->orderBy($modelInstance->getKeyName())->chunk($chunk, function ($items) use (
-                $fields, $prefix, $dryRun, $debugFirst, $tableName, $legacyEncrypters, $currentEncrypter,
+                $fields, $prefix, $dryRun, $tableName,
                 &$totalMigrated, &$totalSkipped, &$totalFailed, &$stopProcessing
             ) {
                 if ($stopProcessing) {
@@ -131,42 +131,8 @@ class AddEncryptionPrefix extends Command
                                 continue;
                             }
 
-                            // Try all legacy encrypters until one works
-                            $plaintext = $this->tryDecryptWithCandidates($legacyEncrypters, $value);
-
-                            if ($plaintext === null) {
-                                $totalFailed++;
-
-                                if ($debugFirst) {
-                                    $this->error("DEBUG: Could not decrypt field '{$field}' for record {$item->getKey()}");
-                                    $this->line('  Raw value (first 80 chars): '.substr($value, 0, 80).'...');
-                                    $this->line('  Decoded payload:');
-                                    $this->line('    iv:    '.($decoded['iv'] ?? 'n/a'));
-                                    $this->line('    value: '.substr($decoded['value'] ?? '', 0, 40).'...');
-                                    $this->line('    mac:   '.($decoded['mac'] ?? 'n/a'));
-                                    $this->line('    tag:   '.($decoded['tag'] ?? 'n/a'));
-                                    $this->line('  Tried encrypters:');
-                                    foreach ($legacyEncrypters as $label => $enc) {
-                                        try {
-                                            $enc->decryptString($value);
-                                            $this->line("    {$label}: SUCCESS");
-                                        } catch (\Throwable $e) {
-                                            $this->line("    {$label}: FAILED - ".$e->getMessage());
-                                        }
-                                    }
-                                    $stopProcessing = true;
-
-                                    return false;
-                                }
-
-                                $this->warn("  Could not decrypt field '{$field}' for record {$item->getKey()} with any legacy key.");
-
-                                continue;
-                            }
-
-                            // Re-encrypt with current encrypter (KDF-based) + prefix
-                            $newEncrypted = $prefix.$currentEncrypter->encryptString($plaintext);
-                            $updates[$field] = $newEncrypted;
+                            // Only add prefix, do not re-encrypt
+                            $updates[$field] = $prefix.$value;
                         }
                     }
 
@@ -181,7 +147,7 @@ class AddEncryptionPrefix extends Command
                 }
             });
 
-            $this->info("Migrated {$totalMigrated} records, skipped {$totalSkipped}, failed {$totalFailed} for {$fqcn}".($dryRun ? ' (dry run)' : ''));
+            $this->info('Updated '.$totalMigrated.' records for '.$fqcn.($dryRun ? ' (dry run)' : ''));
 
             if ($stopProcessing) {
                 return Command::FAILURE;
@@ -216,15 +182,6 @@ class AddEncryptionPrefix extends Command
 
         if ($this->option('old-password')) {
             $passwords['cli-old'] = $this->option('old-password');
-        }
-
-        try {
-            $oldPassword = $storageManager->getKeyString(true);
-            if (! in_array($oldPassword, $passwords, true)) {
-                $passwords['config-old'] = $oldPassword;
-            }
-        } catch (\Throwable $e) {
-            // Old password not available
         }
 
         if (empty($passwords)) {

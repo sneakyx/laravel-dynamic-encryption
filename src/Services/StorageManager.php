@@ -20,17 +20,13 @@ class StorageManager
     }
 
     /**
-     * Returns the key string as stored (e.g. "base64:...")
+     * Returns the current key string as stored (e.g. "base64:...")
      */
-    public function getKeyString($getOldPassword = false): string
+    public function getKeyString(): string
     {
         $storage = Config::get('dynamic-encryption.storage');
         $keyArray = Config::get('dynamic-encryption.array');
-        if ($getOldPassword) {
-            $keyName = Config::get('dynamic-encryption.old_key');
-        } else {
-            $keyName = Config::get('dynamic-encryption.key');
-        }
+        $keyName = Config::get('dynamic-encryption.key');
         if (! in_array($storage, ['memcache', 'memcached', 'redis', 'array'], true) && ! App::environment('local')) {
             throw new RuntimeException('Unsupported dynamic encryption storage: '.$storage);
         }

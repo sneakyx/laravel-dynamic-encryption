@@ -19,7 +19,6 @@ class StorageManagerTest extends Orchestra
         $app['config']->set('dynamic-encryption.storage', 'array');
         $app['config']->set('dynamic-encryption.array', 'dynamic_encryption_key');
         $app['config']->set('dynamic-encryption.key', 'password');
-        $app['config']->set('dynamic-encryption.old_key', 'old_password');
     }
 
     public function test_normalize_base64_key_to_bytes(): void
@@ -30,27 +29,18 @@ class StorageManagerTest extends Orchestra
         $this->assertSame($raw, $bytes);
     }
 
-    public function test_get_key_with_old_and_new_parameters(): void
+    public function test_get_key_string_returns_current_password(): void
     {
         $sm = $this->app->make(StorageManager::class);
 
-        // Mock keys in cache first so we have something to retrieve
+        // Mock key in cache first so we have something to retrieve
         $bundle = [
             'password' => 'base64:'.base64_encode(random_bytes(32)),
-            'old_password' => 'base64:'.base64_encode(random_bytes(32)),
         ];
         $this->app['cache']->store('array')->put('dynamic_encryption_key', $bundle);
 
-        // Test getting old key
-        $oldKey = $sm->getKeyString(true);
-        $this->assertSame($bundle['old_password'], $oldKey);
-
-        // Test getting new key
-        $newKey = $sm->getKeyString(false);
-        $this->assertSame($bundle['password'], $newKey);
-
-        // Keys should be different
-        $this->assertNotSame($oldKey, $newKey);
+        $key = $sm->getKeyString();
+        $this->assertSame($bundle['password'], $key);
     }
 
     public function test_invalid_storage_throws_exception(): void
