@@ -3,6 +3,9 @@
 This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+## [0.5.2] - 2026-02-23
+### Fixed
+- `dynamic-encrypter:migrate-legacy`: command was broken
 
 ## [0.5.1] - 2026-02-23
 ### Changed
