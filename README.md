@@ -80,10 +80,11 @@ $plain   = Crypt::decryptString($payload);
 
 ### Usage
 
-Use the `EncryptedNullableCast` in your model's `$casts` array:
+Use the `EncryptedNullableCast` or `EncryptedNullableJsonCast` in your model's `$casts` array:
 
 ```php
 use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableCast;
+use Sneakyx\LaravelDynamicEncryption\Casts\EncryptedNullableJsonCast;
 
 class User extends Model
 {
@@ -91,6 +92,7 @@ class User extends Model
     {
         return [
             'secret_field' => EncryptedNullableCast::class,
+            'secret_array' => EncryptedNullableJsonCast::class,
         ];
     }
 }

@@ -3,6 +3,15 @@
 This project adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [0.6.0] - 2026-03-03
+### Added
+- New `EncryptedNullableJsonCast` for encrypted nullable JSON/Arrays.
+- Common encryption logic extracted to `EncryptionCastSupport` trait.
+
+### Changed
+- Refactored `EncryptedNullableCast` to use `EncryptionCastSupport` trait.
+
 ## [0.5.2] - 2026-02-23
 ### Fixed
 - `dynamic-encrypter:migrate-legacy`: command was broken
